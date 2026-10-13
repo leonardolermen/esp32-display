@@ -15,7 +15,7 @@ PanelPoint whereTheMarkLands(const ScreenRotation& rotation, ScreenPoint marked)
     std::vector<uint16_t> portrait(PANEL_WIDTH * PANEL_HEIGHT, 0);
     landscape[marked.y * SCREEN_WIDTH + marked.x] = MARK;
 
-    rotation.rotate(landscape.data(), portrait.data());
+    rotation.rotateRows(landscape.data(), 0, PANEL_HEIGHT, portrait.data());
 
     for (size_t index = 0; index < portrait.size(); index++) {
         if (portrait[index] == MARK_FOR_PANEL) {
@@ -67,11 +67,39 @@ void test_rotation_hands_the_panel_big_endian_pixels()
     std::vector<uint16_t> landscape(SCREEN_WIDTH * SCREEN_HEIGHT, 0x1234);
     std::vector<uint16_t> portrait(PANEL_WIDTH * PANEL_HEIGHT, 0);
 
-    Rotation90().rotate(landscape.data(), portrait.data());
+    Rotation90().rotateRows(landscape.data(), 0, PANEL_HEIGHT, portrait.data());
     TEST_ASSERT_EACH_EQUAL_UINT16(0x3412, portrait.data(), portrait.size());
 
-    Rotation270().rotate(landscape.data(), portrait.data());
+    Rotation270().rotateRows(landscape.data(), 0, PANEL_HEIGHT, portrait.data());
     TEST_ASSERT_EACH_EQUAL_UINT16(0x3412, portrait.data(), portrait.size());
+}
+
+void assertBandsMatchTheWholeFrame(const ScreenRotation& rotation)
+{
+    constexpr uint16_t BAND_ROWS = 32;
+    std::vector<uint16_t> landscape(SCREEN_WIDTH * SCREEN_HEIGHT);
+    for (size_t index = 0; index < landscape.size(); index++) {
+        landscape[index] = static_cast<uint16_t>(index * 7);
+    }
+    std::vector<uint16_t> whole(PANEL_WIDTH * PANEL_HEIGHT, 0);
+    rotation.rotateRows(landscape.data(), 0, PANEL_HEIGHT, whole.data());
+
+    std::vector<uint16_t> band(PANEL_WIDTH * BAND_ROWS, 0);
+    for (uint16_t firstRow = 0; firstRow < PANEL_HEIGHT; firstRow += BAND_ROWS) {
+        rotation.rotateRows(landscape.data(), firstRow, BAND_ROWS, band.data());
+
+        TEST_ASSERT_EQUAL_UINT16_ARRAY(whole.data() + firstRow * PANEL_WIDTH, band.data(), band.size());
+    }
+}
+
+void test_rotation90_in_bands_matches_the_whole_frame()
+{
+    assertBandsMatchTheWholeFrame(Rotation90());
+}
+
+void test_rotation270_in_bands_matches_the_whole_frame()
+{
+    assertBandsMatchTheWholeFrame(Rotation270());
 }
 
 void test_rotation90_touch_lands_where_it_was_drawn()
@@ -98,6 +126,8 @@ int main()
     RUN_TEST(test_rotation90_puts_screen_origin_at_panel_top_right);
     RUN_TEST(test_rotation270_puts_screen_origin_at_panel_bottom_left);
     RUN_TEST(test_rotation_hands_the_panel_big_endian_pixels);
+    RUN_TEST(test_rotation90_in_bands_matches_the_whole_frame);
+    RUN_TEST(test_rotation270_in_bands_matches_the_whole_frame);
     RUN_TEST(test_rotation90_touch_lands_where_it_was_drawn);
     RUN_TEST(test_rotation270_touch_lands_where_it_was_drawn);
     return UNITY_END();
