@@ -9,14 +9,16 @@
 <body>
 <header><h1>Claudinho</h1><span id="clock"></span></header>
 <main>
-  <section id="password" class="card">
-    <h2>Senha de administrador</h2>
-    <p class="hint">Protege as fotos e as configurações. De 8 a 64 caracteres.</p>
-    <form id="password-form">
-      <input type="password" id="password-value" placeholder="senha" autocomplete="new-password">
-      <input type="password" id="password-confirm" placeholder="confirme a senha" autocomplete="new-password">
-      <p class="error" id="password-error"></p>
-      <button type="submit">Salvar senha</button>
+  <section id="pin" class="card">
+    <h2>PIN de administrador</h2>
+    <p class="hint">Como o do celular: de 4 a 6 números. Protege as fotos e as configurações.</p>
+    <form id="pin-form">
+      <input type="password" id="pin-value" placeholder="PIN" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+        autocomplete="off">
+      <input type="password" id="pin-confirm" placeholder="confirme o PIN" inputmode="numeric" pattern="[0-9]*"
+        maxlength="6" autocomplete="off">
+      <p class="error" id="pin-error"></p>
+      <button type="submit">Salvar PIN</button>
     </form>
   </section>
   <section id="photos" class="card hidden">

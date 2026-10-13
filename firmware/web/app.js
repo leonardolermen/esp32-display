@@ -5,28 +5,28 @@ const status = await fetch('/api/status').then((response) => response.json());
 document.getElementById('clock').textContent = status.time;
 document.getElementById('photos').classList.toggle('hidden', !status.adminSet);
 
-const form = document.getElementById('password-form');
-const error = document.getElementById('password-error');
+const form = document.getElementById('pin-form');
+const error = document.getElementById('pin-error');
 
 form.addEventListener('submit', async (event) => {
     event.preventDefault();
     error.textContent = '';
 
-    const password = document.getElementById('password-value').value;
-    const confirm = document.getElementById('password-confirm').value;
-    if (password.trim().length < 8 || password.trim().length > 64) {
-        error.textContent = 'De 8 a 64 caracteres.';
+    const pin = document.getElementById('pin-value').value.trim();
+    const confirm = document.getElementById('pin-confirm').value.trim();
+    if (!/^[0-9]{4,6}$/.test(pin)) {
+        error.textContent = 'De 4 a 6 números.';
         return;
     }
-    if (password !== confirm) {
-        error.textContent = 'As duas senhas não batem.';
+    if (pin !== confirm) {
+        error.textContent = 'Os dois PINs não batem.';
         return;
     }
 
-    const response = await fetch('/api/admin/password', {
+    const response = await fetch('/api/admin/pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ pin }),
     });
     if (!response.ok) {
         const body = await response.json().catch(() => ({ error: 'não deu certo' }));
