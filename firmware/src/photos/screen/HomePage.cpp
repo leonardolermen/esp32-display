@@ -68,10 +68,13 @@ void HomePage::build(lv_obj_t* parent)
 
 void HomePage::onShow()
 {
+    reloadAlbum();
+}
+
+void HomePage::reloadAlbum()
+{
     names = store.list();
-    if (!order || order->count() != names.size()) {
-        order.emplace(names.size(), static_cast<uint32_t>(millis()));
-    }
+    order.emplace(names.size(), static_cast<uint32_t>(millis()));
 
     lastSwapMillis = 0;
 }
@@ -79,6 +82,11 @@ void HomePage::onShow()
 // A decodificação (~150 ms) acontece aqui e segura a UI por esse tempo a cada 12 s; aceito nesta versão.
 void HomePage::onTick(uint32_t nowMillis)
 {
+    uint32_t albumVersion = 0;
+    if (store.albumVersion().readIfChanged(albumVersion, seenAlbumVersion)) {
+        reloadAlbum();
+    }
+
     if (nowMillis - lastSwapMillis >= SWAP_EVERY_MILLIS) {
         showNextPhoto(nowMillis);
     }
@@ -101,7 +109,13 @@ void HomePage::showNextPhoto(uint32_t nowMillis)
     }
 
     size_t incoming = 1 - visible;
+    if (frames[incoming].data == nullptr) {
+        return;
+    }
+
     if (!view.load(names[*pick], frames[incoming])) {
+        // Foto apagada ou corrompida: a próxima volta do loop já tenta a seguinte, sem esperar os 12 s.
+        lastSwapMillis = nowMillis - SWAP_EVERY_MILLIS;
         return;
     }
 

@@ -14,6 +14,7 @@ public:
 
     void begin();
     AsyncWebServer& raw();
+    bool isAuthorized(AsyncWebServerRequest* request) const;
     bool authorize(AsyncWebServerRequest* request);
 
 private:

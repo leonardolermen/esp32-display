@@ -39,6 +39,19 @@ void test_accepts_a_normal_photo()
     TEST_ASSERT_FALSE(UploadCheck::refuse(100 * 1024, 2 * 1024 * 1024, 10).has_value());
 }
 
+void test_received_bytes_past_the_limit_are_refused_even_without_content_length()
+{
+    std::optional<std::string> refusal = UploadCheck::refuseReceived(200 * 1024 + 1);
+
+    TEST_ASSERT_TRUE(refusal.has_value());
+    TEST_ASSERT_EQUAL_STRING("foto maior que 200 KB", refusal->c_str());
+}
+
+void test_received_bytes_within_the_limit_are_fine()
+{
+    TEST_ASSERT_FALSE(UploadCheck::refuseReceived(200 * 1024).has_value());
+}
+
 int main()
 {
     UNITY_BEGIN();
@@ -46,5 +59,7 @@ int main()
     RUN_TEST(test_flash_nearly_full);
     RUN_TEST(test_too_many_photos);
     RUN_TEST(test_accepts_a_normal_photo);
+    RUN_TEST(test_received_bytes_past_the_limit_are_refused_even_without_content_length);
+    RUN_TEST(test_received_bytes_within_the_limit_are_fine);
     return UNITY_END();
 }

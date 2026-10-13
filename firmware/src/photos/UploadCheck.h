@@ -11,4 +11,5 @@ public:
     static constexpr size_t MAX_PHOTOS = 200;
 
     static std::optional<std::string> refuse(size_t declaredBytes, size_t freeBytes, size_t photoCount);
+    static std::optional<std::string> refuseReceived(size_t receivedBytes);
 };

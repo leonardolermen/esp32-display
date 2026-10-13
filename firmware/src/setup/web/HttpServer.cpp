@@ -76,9 +76,14 @@ AsyncWebServer& HttpServer::raw()
     return server;
 }
 
+bool HttpServer::isAuthorized(AsyncWebServerRequest* request) const
+{
+    return carriesAdminCredentials(request, secret);
+}
+
 bool HttpServer::authorize(AsyncWebServerRequest* request)
 {
-    if (carriesAdminCredentials(request, secret)) {
+    if (isAuthorized(request)) {
         return true;
     }
 

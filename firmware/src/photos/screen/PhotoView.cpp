@@ -24,6 +24,10 @@ PhotoView::PhotoView(PhotoStore& store)
 // não precisa dos callbacks de arquivo.
 bool PhotoView::load(const PhotoName& name, lv_image_dsc_t& into)
 {
+    if (into.data == nullptr) {
+        return false;
+    }
+
     File file = store.open(name);
     if (!file) {
         return false;

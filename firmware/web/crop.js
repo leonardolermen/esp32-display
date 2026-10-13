@@ -22,7 +22,8 @@ export async function cropToJpeg(file) {
     const canvas = document.createElement('canvas');
     canvas.width = TARGET_WIDTH;
     canvas.height = TARGET_HEIGHT;
-    canvas.getContext('2d').drawImage(bitmap, rect.x, rect.y, rect.width, rect.height, 0, 0, TARGET_WIDTH, TARGET_HEIGHT);
+    const context = canvas.getContext('2d');
+    context.drawImage(bitmap, rect.x, rect.y, rect.width, rect.height, 0, 0, TARGET_WIDTH, TARGET_HEIGHT);
 
     return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
 }

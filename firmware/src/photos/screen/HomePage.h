@@ -19,6 +19,7 @@ public:
     void onTick(uint32_t nowMillis) override;
 
 private:
+    void reloadAlbum();
     void showNextPhoto(uint32_t nowMillis);
     void refreshClock();
     static lv_image_dsc_t makeFrame();
@@ -33,6 +34,7 @@ private:
     size_t visible = 0;
     uint32_t lastSwapMillis = 0;
     uint32_t lastClockMillis = 0;
+    uint32_t seenAlbumVersion = 0;
 
     lv_obj_t* invite = nullptr;
     lv_obj_t* band = nullptr;

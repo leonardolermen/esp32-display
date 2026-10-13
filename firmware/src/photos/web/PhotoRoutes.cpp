@@ -3,12 +3,17 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
+#include <cstdlib>
+#include <cstring>
+
 #include "photos/UploadCheck.h"
 
 namespace {
 
 constexpr const char* TOO_BIG = "foto maior que 200 KB";
 constexpr const char* STORAGE_FULL = "memória cheia";
+constexpr const char* ANOTHER_UPLOAD_RUNNING = "outro envio em andamento";
+constexpr const char* NO_FILE = "nenhum arquivo enviado";
 
 std::optional<PhotoName> nameFromPath(AsyncWebServerRequest* request)
 {
@@ -16,7 +21,7 @@ std::optional<PhotoName> nameFromPath(AsyncWebServerRequest* request)
     return PhotoName::parse(url.substring(url.lastIndexOf('/') + 1).c_str());
 }
 
-void sendError(AsyncWebServerRequest* request, int status, const std::string& message)
+void sendError(AsyncWebServerRequest* request, int status, const char* message)
 {
     JsonDocument document;
     document["error"] = message;
@@ -26,17 +31,39 @@ void sendError(AsyncWebServerRequest* request, int status, const std::string& me
     request->send(status, "application/json", body);
 }
 
-int statusFor(const std::string& refusal)
+int statusFor(const char* refusal)
 {
-    if (refusal == STORAGE_FULL) {
+    if (strcmp(refusal, STORAGE_FULL) == 0) {
         return 507;
     }
 
-    if (refusal == TOO_BIG) {
+    if (strcmp(refusal, TOO_BIG) == 0) {
         return 413;
     }
 
+    if (strcmp(refusal, ANOTHER_UPLOAD_RUNNING) == 0) {
+        return 409;
+    }
+
     return 400;
+}
+
+// Mensagens vêm de constantes com vida estática: o struct é liberado com free() e não pode ter std::string.
+const char* keep(const std::optional<std::string>& refusal)
+{
+    if (!refusal) {
+        return nullptr;
+    }
+
+    if (*refusal == STORAGE_FULL) {
+        return STORAGE_FULL;
+    }
+
+    if (*refusal == TOO_BIG) {
+        return TOO_BIG;
+    }
+
+    return "limite de 200 fotos";
 }
 
 }
@@ -52,7 +79,8 @@ void PhotoRoutes::begin()
     AsyncWebServer& server = http.raw();
 
     server.on("/api/photos", HTTP_GET, [this](AsyncWebServerRequest* request) { list(request); });
-    server.on("^/api/photos/(p[0-9]{4}\\.jpg)$", HTTP_DELETE, [this](AsyncWebServerRequest* request) { remove(request); });
+    server.on("^/api/photos/(p[0-9]{4}\\.jpg)$", HTTP_DELETE,
+        [this](AsyncWebServerRequest* request) { remove(request); });
     server.on("^/photos/(p[0-9]{4}\\.jpg)$", HTTP_GET, [this](AsyncWebServerRequest* request) { serve(request); });
 
     server.on("/api/photos", HTTP_POST,
@@ -62,45 +90,90 @@ void PhotoRoutes::begin()
         });
 }
 
-void PhotoRoutes::receive(AsyncWebServerRequest* request, const uint8_t* data, size_t length, size_t index)
+PhotoRoutes::Upload* PhotoRoutes::startUpload(AsyncWebServerRequest* request)
 {
-    if (index == 0) {
-        refusal.reset();
-        if (!http.authorize(request)) {
-            refusal = "não autorizado";
-            return;
-        }
+    Upload* upload = static_cast<Upload*>(calloc(1, sizeof(Upload)));
+    request->_tempObject = upload;
+    // Se o cliente sumir no meio, o servidor descarta o request; o temporário aberto é fechado aqui.
+    request->onDisconnect([this, request, upload]() { releaseUpload(request, upload); });
 
-        refusal = UploadCheck::refuse(request->contentLength(), store.freeBytes(), store.list().size());
-        if (refusal) {
-            return;
-        }
-
-        if (!store.beginUpload()) {
-            refusal = "não consegui abrir o arquivo";
-            return;
-        }
+    upload->authorized = http.isAuthorized(request);
+    if (!upload->authorized) {
+        return upload;
     }
 
-    if (refusal) {
+    if (uploading != nullptr) {
+        upload->refusal = ANOTHER_UPLOAD_RUNNING;
+        return upload;
+    }
+
+    upload->refusal = keep(UploadCheck::refuse(request->contentLength(), store.freeBytes(), store.list().size()));
+    if (upload->refusal != nullptr) {
+        return upload;
+    }
+
+    if (!store.beginUpload()) {
+        upload->refusal = "não consegui abrir o arquivo";
+        return upload;
+    }
+
+    uploading = request;
+    upload->owner = true;
+    return upload;
+}
+
+void PhotoRoutes::releaseUpload(AsyncWebServerRequest* request, Upload* upload)
+{
+    if (upload->owner && uploading == request) {
+        store.abortUpload();
+        uploading = nullptr;
+        upload->owner = false;
+    }
+}
+
+void PhotoRoutes::receive(AsyncWebServerRequest* request, const uint8_t* data, size_t length, size_t index)
+{
+    Upload* upload = index == 0 ? startUpload(request) : static_cast<Upload*>(request->_tempObject);
+    if (!upload->owner) {
         return;
     }
 
-    if (!store.writeChunk(data, length)) {
-        store.abortUpload();
-        refusal = STORAGE_FULL;
+    upload->received += length;
+    upload->refusal = keep(UploadCheck::refuseReceived(upload->received));
+    if (upload->refusal == nullptr && !store.writeChunk(data, length)) {
+        upload->refusal = STORAGE_FULL;
+    }
+
+    if (upload->refusal != nullptr) {
+        releaseUpload(request, upload);
     }
 }
 
 void PhotoRoutes::finish(AsyncWebServerRequest* request)
 {
-    if (refusal) {
-        sendError(request, statusFor(*refusal), *refusal);
+    Upload* upload = static_cast<Upload*>(request->_tempObject);
+    if (upload == nullptr) {
+        if (http.authorize(request)) {
+            sendError(request, 400, NO_FILE);
+        }
+        return;
+    }
+
+    if (!upload->authorized) {
+        http.authorize(request);
+        return;
+    }
+
+    if (upload->refusal != nullptr) {
+        sendError(request, statusFor(upload->refusal), upload->refusal);
         return;
     }
 
     PhotoName name = store.nextName();
-    if (!store.finishUpload(name)) {
+    bool saved = store.finishUpload(name);
+    uploading = nullptr;
+    upload->owner = false;
+    if (!saved) {
         sendError(request, 500, "não consegui gravar a foto");
         return;
     }
@@ -144,7 +217,10 @@ void PhotoRoutes::serve(AsyncWebServerRequest* request)
         return;
     }
 
-    request->send(LittleFS, name->path().c_str(), "image/jpeg");
+    // O número pode ser reaproveitado depois de apagar a última foto; sem cache o navegador não mostra a antiga.
+    AsyncWebServerResponse* response = request->beginResponse(LittleFS, name->path().c_str(), "image/jpeg");
+    response->addHeader("Cache-Control", "no-cache");
+    request->send(response);
 }
 
 void PhotoRoutes::remove(AsyncWebServerRequest* request)

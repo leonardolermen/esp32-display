@@ -67,7 +67,12 @@ bool PhotoStore::writeChunk(const uint8_t* data, size_t length)
 bool PhotoStore::finishUpload(const PhotoName& name)
 {
     upload.close();
-    return LittleFS.rename(TEMP_PATH, name.path().c_str());
+    bool renamed = LittleFS.rename(TEMP_PATH, name.path().c_str());
+    if (renamed) {
+        bumpAlbum();
+    }
+
+    return renamed;
 }
 
 void PhotoStore::abortUpload()
@@ -78,10 +83,26 @@ void PhotoStore::abortUpload()
 
 bool PhotoStore::remove(const PhotoName& name)
 {
-    return LittleFS.remove(name.path().c_str());
+    bool removed = LittleFS.remove(name.path().c_str());
+    if (removed) {
+        bumpAlbum();
+    }
+
+    return removed;
 }
 
 File PhotoStore::open(const PhotoName& name) const
 {
     return LittleFS.open(name.path().c_str(), FILE_READ);
+}
+
+const Published<uint32_t>& PhotoStore::albumVersion() const
+{
+    return album;
+}
+
+void PhotoStore::bumpAlbum()
+{
+    albumChanges++;
+    album.publish(albumChanges);
 }

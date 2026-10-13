@@ -47,8 +47,13 @@ PhotoRoutes photoRoutes(http, photoStore);
 BirthdayMemory birthdayMemory;
 BirthdayOverlay birthdayOverlay;
 
+constexpr uint32_t BIRTHDAY_CHECK_EVERY_MILLIS = 60000;
+
 uint32_t seenSetupVersion = 0;
 bool setupWasPending = false;
+bool configured = false;
+bool birthdayOnScreen = false;
+uint32_t lastBirthdayCheckMillis = 0;
 
 void logToSerial(lv_log_level_t, const char* text)
 {
@@ -71,9 +76,14 @@ void networkTask(void*)
 }
 
 // Quando a configuração termina, reiniciar é o jeito mais simples de montar as páginas normais sem estado meio
-// trocado. Só reinicia se esta execução viu a configuração pendente: um boot que já começa pronto não entra em loop.
+// trocado. Só vale com a tela de configuração na tela: numa placa pronta, o Wi-Fi caindo e voltando passaria por
+// WaitingWifi → Done e reiniciaria o aparelho a cada queda do roteador.
 void restartWhenSetupCompletes()
 {
+    if (configured) {
+        return;
+    }
+
     SetupState current;
     if (!setupState.readIfChanged(current, seenSetupVersion)) {
         return;
@@ -87,6 +97,36 @@ void restartWhenSetupCompletes()
     if (setupWasPending) {
         ESP.restart();
     }
+}
+
+void showBirthdayIfDue()
+{
+    if (birthdayOnScreen) {
+        return;
+    }
+
+    if (!BirthdayCalendar::shouldShow(birthdayMemory.neverShown(), LocalTime::now(), birthdayMemory.lastShownYear())) {
+        return;
+    }
+
+    birthdayOnScreen = true;
+    birthdayOverlay.show([]() {
+        std::optional<LocalTime> now = LocalTime::now();
+        birthdayMemory.markShown(now ? std::optional<int>(now->year) : std::nullopt);
+        birthdayOnScreen = false;
+    });
+}
+
+// No ligar a frio não há relógio: o 22/10 só é conhecido depois do NTP, ou quando a meia-noite passa com a placa
+// ligada. Por isso a data é reconferida de tempos em tempos, não só no boot.
+void checkBirthdayPeriodically(uint32_t nowMillis)
+{
+    if (nowMillis - lastBirthdayCheckMillis < BIRTHDAY_CHECK_EVERY_MILLIS) {
+        return;
+    }
+
+    lastBirthdayCheckMillis = nowMillis;
+    showBirthdayIfDue();
 }
 
 }
@@ -110,7 +150,7 @@ void setup()
     photoStore.begin();
     adminSecret.begin();
 
-    bool configured = adminSecret.isSet() && wifi.hasSavedNetwork();
+    configured = adminSecret.isSet() && wifi.hasSavedNetwork();
     if (configured) {
         navigator.add(std::make_unique<HomePage>(photoStore));
     } else {
@@ -118,14 +158,9 @@ void setup()
     }
     navigator.begin();
 
-    // A tarefa de rede sobe em paralelo: a mensagem nunca espera Wi-Fi.
+    // A tarefa de rede sobe em paralelo: a mensagem do primeiro boot nunca espera Wi-Fi.
     birthdayMemory.begin();
-    if (BirthdayCalendar::shouldShow(birthdayMemory.neverShown(), LocalTime::now(), birthdayMemory.lastShownYear())) {
-        birthdayOverlay.show([]() {
-            std::optional<LocalTime> now = LocalTime::now();
-            birthdayMemory.markShown(now ? std::optional<int>(now->year) : std::nullopt);
-        });
-    }
+    showBirthdayIfDue();
 
     xTaskCreatePinnedToCore(networkTask, "network", 8192, nullptr, 1, nullptr, 0);
 }
@@ -133,6 +168,7 @@ void setup()
 void loop()
 {
     restartWhenSetupCompletes();
+    checkBirthdayPeriodically(millis());
     navigator.tick(millis());
     uint32_t untilNextRun = lv_timer_handler();
 

@@ -49,3 +49,7 @@ Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` 
 
 - [ ] `pio run -t erase` → aniversário → portal → página → senha → reinicia → fotos → Início com relógio.
 - [ ] Desligar e ligar: Início direto em menos de 5 s, fotos e relógio no lugar.
+- [ ] Placa configurada: roteador cai e volta → o aparelho não reinicia.
+- [ ] Placa ligada atravessando a meia-noite de 21 para 22/10: a mensagem aparece em até um minuto.
+- [ ] Dois envios de foto ao mesmo tempo: o segundo recebe "outro envio em andamento"; o primeiro grava inteiro.
+- [ ] Foto nova aparece no carrossel sem reiniciar.
