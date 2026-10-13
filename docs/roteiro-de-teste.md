@@ -8,5 +8,6 @@ O que os testes do PC não alcançam. Rode a seção da área que você mexeu an
 - [ ] Texto legível em paisagem, do jeito que a placa fica na mesa.
 - [ ] Toque cai onde o dedo encostou (cantos e centro).
 - [ ] Taxa de quadros com animação: ≥ 20 FPS.
+- [ ] Com a USB ligada no computador e nenhum monitor serial aberto, a tela segue animando por alguns minutos.
 
 Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` ______, rotação ______, FPS ______.

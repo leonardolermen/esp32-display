@@ -10,18 +10,23 @@ class ScreenRotation {
 public:
     virtual ~ScreenRotation() = default;
 
-    virtual void rotate(const uint16_t* landscape, uint16_t* portrait) const = 0;
+    // Gira as linhas [firstRow, firstRow + rowCount) do painel a partir do quadro paisagem inteiro. O quadro pode
+    // ir ao painel em faixas, cada uma num buffer pequeno, sem nunca existir girado por inteiro.
+    virtual void rotateRows(
+        const uint16_t* landscape, uint16_t firstRow, uint16_t rowCount, uint16_t* portraitRows) const = 0;
     virtual ScreenPoint toScreen(PanelPoint touched) const = 0;
 };
 
 class Rotation90 : public ScreenRotation {
 public:
-    void rotate(const uint16_t* landscape, uint16_t* portrait) const override;
+    void rotateRows(
+        const uint16_t* landscape, uint16_t firstRow, uint16_t rowCount, uint16_t* portraitRows) const override;
     ScreenPoint toScreen(PanelPoint touched) const override;
 };
 
 class Rotation270 : public ScreenRotation {
 public:
-    void rotate(const uint16_t* landscape, uint16_t* portrait) const override;
+    void rotateRows(
+        const uint16_t* landscape, uint16_t firstRow, uint16_t rowCount, uint16_t* portraitRows) const override;
     ScreenPoint toScreen(PanelPoint touched) const override;
 };
