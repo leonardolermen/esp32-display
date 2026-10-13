@@ -7,6 +7,7 @@
 #include "birthday/BirthdayCalendar.h"
 #include "birthday/screen/BirthdayOverlay.h"
 #include "birthday/storage/BirthdayMemory.h"
+#include "birthday/web/BirthdayRoutes.h"
 #include "board/ScreenRotation.h"
 #include "board/device/Backlight.h"
 #include "board/device/Display.h"
@@ -46,6 +47,7 @@ PhotoStore photoStore;
 PhotoRoutes photoRoutes(http, photoStore);
 BirthdayMemory birthdayMemory;
 BirthdayOverlay birthdayOverlay;
+BirthdayRoutes birthdayRoutes(http);
 
 constexpr uint32_t BIRTHDAY_CHECK_EVERY_MILLIS = 60000;
 
@@ -54,6 +56,7 @@ bool setupWasPending = false;
 bool configured = false;
 bool birthdayOnScreen = false;
 uint32_t lastBirthdayCheckMillis = 0;
+uint32_t seenReplayRequests = 0;
 
 void logToSerial(lv_log_level_t, const char* text)
 {
@@ -65,6 +68,7 @@ void networkTask(void*)
     wifi.begin();
     adminRoutes.begin();
     photoRoutes.begin();
+    birthdayRoutes.begin();
     http.begin();
     networkClock.begin();
 
@@ -99,13 +103,9 @@ void restartWhenSetupCompletes()
     }
 }
 
-void showBirthdayIfDue()
+void showBirthday()
 {
     if (birthdayOnScreen) {
-        return;
-    }
-
-    if (!BirthdayCalendar::shouldShow(birthdayMemory.neverShown(), LocalTime::now(), birthdayMemory.lastShownYear())) {
         return;
     }
 
@@ -115,6 +115,22 @@ void showBirthdayIfDue()
         birthdayMemory.markShown(now ? std::optional<int>(now->year) : std::nullopt);
         birthdayOnScreen = false;
     });
+}
+
+void showBirthdayIfDue()
+{
+    if (BirthdayCalendar::shouldShow(birthdayMemory.neverShown(), LocalTime::now(), birthdayMemory.lastShownYear())) {
+        showBirthday();
+    }
+}
+
+// A página tem um botão "mostrar de novo": serve para testar e para o pai reler quando quiser.
+void replayBirthdayWhenAsked()
+{
+    uint32_t requests = 0;
+    if (birthdayRoutes.replayRequests().readIfChanged(requests, seenReplayRequests)) {
+        showBirthday();
+    }
 }
 
 // No ligar a frio não há relógio: o 22/10 só é conhecido depois do NTP, ou quando a meia-noite passa com a placa
@@ -169,6 +185,7 @@ void loop()
 {
     restartWhenSetupCompletes();
     checkBirthdayPeriodically(millis());
+    replayBirthdayWhenAsked();
     navigator.tick(millis());
     uint32_t untilNextRun = lv_timer_handler();
 

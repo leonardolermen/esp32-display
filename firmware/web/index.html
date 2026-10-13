@@ -23,10 +23,16 @@
   </section>
   <section id="photos" class="card hidden">
     <h2>Fotos</h2>
-    <p class="hint">O navegador recorta para a tela (480×320) antes de enviar.</p>
+    <p class="hint">A foto inteira vai para a tela (480×320), com as sobras desfocadas; o navegador prepara antes de enviar.</p>
     <div id="photo-grid"></div>
     <label class="button">Enviar fotos<input type="file" id="photo-input" accept="image/*" multiple hidden></label>
     <p id="photo-progress"></p>
+  </section>
+  <section id="birthday" class="card hidden">
+    <h2>Aniversário</h2>
+    <p class="hint">A mensagem aparece sozinha no primeiro boot e todo 22 de outubro.</p>
+    <button type="button" id="birthday-replay">Mostrar a mensagem de novo</button>
+    <span id="birthday-status" class="hint"></span>
   </section>
 </main>
 <script src="/app.js" type="module"></script>

@@ -23,6 +23,7 @@ void WifiLink::begin()
     WiFi.setHostname(HOSTNAME);
 
     // Sem bloquear: a UI continua viva mostrando o QR enquanto o portal espera alguém escolher a rede.
+    manager.setDebugOutput(false);
     manager.setConfigPortalBlocking(false);
     manager.setHostname(HOSTNAME);
     manager.autoConnect(HOTSPOT_NAME);

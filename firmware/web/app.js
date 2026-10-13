@@ -1,9 +1,10 @@
-import { cropToJpeg } from '/crop.js';
+import { composeToJpeg } from '/crop.js';
 
 const status = await fetch('/api/status').then((response) => response.json());
 
 document.getElementById('clock').textContent = status.time;
 document.getElementById('photos').classList.toggle('hidden', !status.adminSet);
+document.getElementById('birthday').classList.toggle('hidden', !status.adminSet);
 
 const form = document.getElementById('pin-form');
 const error = document.getElementById('pin-error');
@@ -68,7 +69,7 @@ document.getElementById('photo-input').addEventListener('change', async (event) 
     for (const [position, file] of files.entries()) {
         progress.textContent = `enviando ${position + 1} de ${files.length}…`;
 
-        const jpeg = await cropToJpeg(file);
+        const jpeg = await composeToJpeg(file);
         const body = new FormData();
         body.append('photo', jpeg, 'photo.jpg');
         const response = await fetch('/api/photos', { method: 'POST', body });
@@ -82,6 +83,11 @@ document.getElementById('photo-input').addEventListener('change', async (event) 
     progress.textContent = files.length ? 'pronto' : '';
     event.target.value = '';
     refreshPhotos();
+});
+
+document.getElementById('birthday-replay').addEventListener('click', async () => {
+    const response = await fetch('/api/birthday/replay', { method: 'POST' });
+    document.getElementById('birthday-status').textContent = response.ok ? 'olha a tela' : 'não deu certo';
 });
 
 if (status.adminSet) {
