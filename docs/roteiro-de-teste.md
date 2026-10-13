@@ -26,3 +26,10 @@ Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` 
 - [ ] Depois de conectar: QR de claudinho.local e o IP por extenso.
 - [ ] `ping claudinho.local` responde.
 - [ ] Página pede senha na primeira vez e autentica depois; sem senha, /api/photos devolve 401.
+
+## Fotos
+
+- [ ] Foto em pé vem com a cabeça inteira (recorte a um terço de cima).
+- [ ] Panorâmica centrada.
+- [ ] Desligar no meio do envio não deixa arquivo pela metade.
+- [ ] JPEG > 200 KB via curl é recusado com mensagem clara.

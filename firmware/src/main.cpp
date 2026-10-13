@@ -9,6 +9,8 @@
 #include "board/device/Display.h"
 #include "board/device/Touch.h"
 #include "navigation/screen/Navigator.h"
+#include "photos/storage/PhotoStore.h"
+#include "photos/web/PhotoRoutes.h"
 #include "setup/SetupProgress.h"
 #include "setup/device/WifiLink.h"
 #include "setup/screen/SetupPage.h"
@@ -35,6 +37,8 @@ NetworkClock networkClock;
 AdminSecret adminSecret;
 HttpServer http(adminSecret);
 AdminRoutes adminRoutes(http, adminSecret, wifi);
+PhotoStore photoStore;
+PhotoRoutes photoRoutes(http, photoStore);
 
 uint32_t seenSetupVersion = 0;
 bool setupWasPending = false;
@@ -48,6 +52,7 @@ void networkTask(void*)
 {
     wifi.begin();
     adminRoutes.begin();
+    photoRoutes.begin();
     http.begin();
     networkClock.begin();
 
@@ -96,6 +101,7 @@ void setup()
     backlight.begin();
 
     adminSecret.begin();
+    photoStore.begin();
 
     // As páginas normais chegam nas próximas tarefas; até lá a tela de configuração fica mesmo depois de pronta.
     navigator.add(std::make_unique<SetupPage>(setupState));

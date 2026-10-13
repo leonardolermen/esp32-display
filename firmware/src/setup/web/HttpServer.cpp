@@ -11,6 +11,8 @@ extern const uint8_t app_css_start[] asm("_binary_web_app_css_start");
 extern const uint8_t app_css_end[] asm("_binary_web_app_css_end");
 extern const uint8_t app_js_start[] asm("_binary_web_app_js_start");
 extern const uint8_t app_js_end[] asm("_binary_web_app_js_end");
+extern const uint8_t crop_js_start[] asm("_binary_web_crop_js_start");
+extern const uint8_t crop_js_end[] asm("_binary_web_crop_js_end");
 
 namespace {
 
@@ -64,6 +66,7 @@ void HttpServer::begin()
     serveEmbedded("/", "text/html", index_html_start, index_html_end);
     serveEmbedded("/app.css", "text/css", app_css_start, app_css_end);
     serveEmbedded("/app.js", "application/javascript", app_js_start, app_js_end);
+    serveEmbedded("/crop.js", "application/javascript", crop_js_start, crop_js_end);
 
     server.begin();
 }
