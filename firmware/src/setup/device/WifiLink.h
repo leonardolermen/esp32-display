@@ -6,6 +6,7 @@
 
 class WifiLink {
 public:
+    bool hasSavedNetwork();
     void begin();
     void process();
     bool connected() const;

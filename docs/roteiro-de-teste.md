@@ -25,3 +25,4 @@ Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` 
 - [ ] Sem Wi-Fi salvo: QR da rede `Claudinho`; o celular entra e abre o portal.
 - [ ] Depois de conectar: QR de claudinho.local e o IP por extenso.
 - [ ] `ping claudinho.local` responde.
+- [ ] Página pede senha na primeira vez e autentica depois; sem senha, /api/photos devolve 401.

@@ -12,6 +12,9 @@
 #include "setup/SetupProgress.h"
 #include "setup/device/WifiLink.h"
 #include "setup/screen/SetupPage.h"
+#include "setup/storage/AdminSecret.h"
+#include "setup/web/AdminRoutes.h"
+#include "setup/web/HttpServer.h"
 #include "support/Published.h"
 #include "support/device/NetworkClock.h"
 #include "theme/Theme.h"
@@ -26,24 +29,51 @@ Touch touch(rotation);
 Backlight backlight;
 Navigator navigator;
 
+Published<SetupState> setupState;
+WifiLink wifi;
+NetworkClock networkClock;
+AdminSecret adminSecret;
+HttpServer http(adminSecret);
+AdminRoutes adminRoutes(http, adminSecret, wifi);
+
+uint32_t seenSetupVersion = 0;
+bool setupWasPending = false;
+
 void logToSerial(lv_log_level_t, const char* text)
 {
     Serial.print(text);
 }
 
-Published<SetupState> setupState;
-WifiLink wifi;
-NetworkClock networkClock;
-
 void networkTask(void*)
 {
     wifi.begin();
+    adminRoutes.begin();
+    http.begin();
     networkClock.begin();
 
     for (;;) {
         wifi.process();
-        setupState.publish(SetupProgress::compute(wifi.connected(), wifi.ip(), false));
+        setupState.publish(SetupProgress::compute(wifi.connected(), wifi.ip(), adminSecret.isSet()));
         vTaskDelay(pdMS_TO_TICKS(500));
+    }
+}
+
+// Quando a configuração termina, reiniciar é o jeito mais simples de montar as páginas normais sem estado meio
+// trocado. Só reinicia se esta execução viu a configuração pendente: um boot que já começa pronto não entra em loop.
+void restartWhenSetupCompletes()
+{
+    SetupState current;
+    if (!setupState.readIfChanged(current, seenSetupVersion)) {
+        return;
+    }
+
+    if (current.step != SetupStep::Done) {
+        setupWasPending = true;
+        return;
+    }
+
+    if (setupWasPending) {
+        ESP.restart();
     }
 }
 
@@ -65,6 +95,9 @@ void setup()
     touch.begin();
     backlight.begin();
 
+    adminSecret.begin();
+
+    // As páginas normais chegam nas próximas tarefas; até lá a tela de configuração fica mesmo depois de pronta.
     navigator.add(std::make_unique<SetupPage>(setupState));
     navigator.begin();
 
@@ -73,6 +106,7 @@ void setup()
 
 void loop()
 {
+    restartWhenSetupCompletes();
     navigator.tick(millis());
     uint32_t untilNextRun = lv_timer_handler();
 

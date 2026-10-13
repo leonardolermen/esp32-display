@@ -10,6 +10,11 @@ constexpr const char* HOTSPOT_NAME = "Claudinho";
 
 }
 
+bool WifiLink::hasSavedNetwork()
+{
+    return manager.getWiFiIsSaved();
+}
+
 void WifiLink::begin()
 {
     WiFi.mode(WIFI_STA);
