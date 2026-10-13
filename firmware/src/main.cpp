@@ -2,11 +2,13 @@
 #include <lvgl.h>
 
 #include <algorithm>
+#include <memory>
 
 #include "board/ScreenRotation.h"
 #include "board/device/Backlight.h"
 #include "board/device/Display.h"
 #include "board/device/Touch.h"
+#include "navigation/screen/Navigator.h"
 
 namespace {
 
@@ -16,65 +18,37 @@ Rotation90 rotation;
 Display display(rotation);
 Touch touch(rotation);
 Backlight backlight;
-uint32_t taps = 0;
+Navigator navigator;
 
 void logToSerial(lv_log_level_t, const char* text)
 {
     Serial.print(text);
 }
 
-lv_obj_t* addCornerMarker(lv_obj_t* screen, lv_align_t corner, uint32_t color)
-{
-    lv_obj_t* marker = lv_obj_create(screen);
-    lv_obj_set_size(marker, 40, 40);
-    lv_obj_set_style_bg_color(marker, lv_color_hex(color), 0);
-    lv_obj_set_style_border_width(marker, 0, 0);
-    lv_obj_set_style_radius(marker, 0, 0);
-    lv_obj_align(marker, corner, 0, 0);
-    return marker;
-}
+// Página de exemplo até as páginas de verdade existirem: um fundo de cor e um título.
+class ExamplePage : public Page {
+public:
+    ExamplePage(const char* title, uint32_t background)
+        : title(title)
+        , background(background)
+    {
+    }
 
-void countTap(lv_event_t* event)
-{
-    lv_obj_t* label = static_cast<lv_obj_t*>(lv_event_get_user_data(event));
+    void build(lv_obj_t* parent) override
+    {
+        lv_obj_set_style_bg_color(parent, lv_color_hex(background), 0);
+        lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
 
-    taps++;
-    lv_label_set_text_fmt(label, "Toques: %lu", static_cast<unsigned long>(taps));
-}
+        lv_obj_t* label = lv_label_create(parent);
+        lv_label_set_text(label, title);
+        lv_obj_set_style_text_color(label, lv_color_hex(0xF5F1EA), 0);
+        lv_obj_center(label);
+    }
 
-void printTouchedPoint(lv_event_t*)
-{
-    lv_point_t point;
-    lv_indev_get_point(lv_indev_active(), &point);
-
-    Serial.printf("toque em x=%d y=%d\n", static_cast<int>(point.x), static_cast<int>(point.y));
-}
-
-void showBringUpScreen()
-{
-    lv_obj_t* screen = lv_screen_active();
-    lv_obj_set_style_bg_color(screen, lv_color_hex(0x1F1E1C), 0);
-    lv_obj_add_event_cb(screen, printTouchedPoint, LV_EVENT_PRESSED, nullptr);
-
-    addCornerMarker(screen, LV_ALIGN_TOP_LEFT, 0xFF0000);
-    addCornerMarker(screen, LV_ALIGN_TOP_RIGHT, 0x00FF00);
-    addCornerMarker(screen, LV_ALIGN_BOTTOM_LEFT, 0x0000FF);
-
-    lv_obj_t* title = lv_label_create(screen);
-    lv_label_set_text(title, "Claudinho - bring-up");
-    lv_obj_set_style_text_color(title, lv_color_hex(0xF5F1EA), 0);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 16);
-
-    lv_obj_t* button = lv_button_create(screen);
-    lv_obj_align(button, LV_ALIGN_CENTER, 0, -20);
-    lv_obj_t* buttonLabel = lv_label_create(button);
-    lv_label_set_text(buttonLabel, "Toques: 0");
-    lv_obj_add_event_cb(button, countTap, LV_EVENT_CLICKED, buttonLabel);
-
-    lv_obj_t* spinner = lv_spinner_create(screen);
-    lv_obj_set_size(spinner, 60, 60);
-    lv_obj_align(spinner, LV_ALIGN_CENTER, 0, 60);
-}
+private:
+    const char* title;
+    uint32_t background;
+};
 
 }
 
@@ -93,11 +67,14 @@ void setup()
     touch.begin();
     backlight.begin();
 
-    showBringUpScreen();
+    navigator.add(std::make_unique<ExamplePage>("Página A", 0x3B6D11));
+    navigator.add(std::make_unique<ExamplePage>("Página B", 0x185FA5));
+    navigator.begin();
 }
 
 void loop()
 {
+    navigator.tick(millis());
     uint32_t untilNextRun = lv_timer_handler();
 
     delay(std::min(untilNextRun, MAX_LOOP_SLEEP_MILLIS));
