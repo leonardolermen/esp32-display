@@ -9,7 +9,11 @@
 #include "board/device/Display.h"
 #include "board/device/Touch.h"
 #include "navigation/screen/Navigator.h"
-#include "theme/Fonts.h"
+#include "setup/SetupProgress.h"
+#include "setup/device/WifiLink.h"
+#include "setup/screen/SetupPage.h"
+#include "support/Published.h"
+#include "support/device/NetworkClock.h"
 #include "theme/Theme.h"
 
 namespace {
@@ -27,29 +31,21 @@ void logToSerial(lv_log_level_t, const char* text)
     Serial.print(text);
 }
 
-// Página de exemplo até as páginas de verdade existirem: um fundo de cor e um título.
-class ExamplePage : public Page {
-public:
-    ExamplePage(const char* title, uint32_t background)
-        : title(title)
-        , background(background)
-    {
+Published<SetupState> setupState;
+WifiLink wifi;
+NetworkClock networkClock;
+
+void networkTask(void*)
+{
+    wifi.begin();
+    networkClock.begin();
+
+    for (;;) {
+        wifi.process();
+        setupState.publish(SetupProgress::compute(wifi.connected(), wifi.ip(), false));
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
-
-    void build(lv_obj_t* parent) override
-    {
-        lv_obj_set_style_bg_color(parent, lv_color_hex(background), 0);
-        lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
-
-        lv_obj_t* label = theme::label(parent, fonts::title, theme::text());
-        lv_label_set_text(label, title);
-        lv_obj_center(label);
-    }
-
-private:
-    const char* title;
-    uint32_t background;
-};
+}
 
 }
 
@@ -69,9 +65,10 @@ void setup()
     touch.begin();
     backlight.begin();
 
-    navigator.add(std::make_unique<ExamplePage>("Página A — ação, coração", 0x3B6D11));
-    navigator.add(std::make_unique<ExamplePage>("Página B — ação, coração", 0x185FA5));
+    navigator.add(std::make_unique<SetupPage>(setupState));
     navigator.begin();
+
+    xTaskCreatePinnedToCore(networkTask, "network", 8192, nullptr, 1, nullptr, 0);
 }
 
 void loop()

@@ -19,3 +19,9 @@ Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` 
 ## Tema
 
 - [ ] Acentos (ç, ã, é) aparecem nas fontes.
+
+## Configuração inicial
+
+- [ ] Sem Wi-Fi salvo: QR da rede `Claudinho`; o celular entra e abre o portal.
+- [ ] Depois de conectar: QR de claudinho.local e o IP por extenso.
+- [ ] `ping claudinho.local` responde.
