@@ -103,7 +103,7 @@ void Display::flush(lv_display_t* display, const lv_area_t*, uint8_t* pixels)
 #ifdef CLAUDINHO_PROFILE_FLUSH
     int64_t drawStart = esp_timer_get_time();
 #endif
-    self->panel->draw16bitRGBBitmap(0, 0, self->panelFrame, PANEL_WIDTH, PANEL_HEIGHT);
+    self->panel->draw16bitBeRGBBitmap(0, 0, self->panelFrame, PANEL_WIDTH, PANEL_HEIGHT);
 #ifdef CLAUDINHO_PROFILE_FLUSH
     reportFlushProfile(rotateStart, drawStart, esp_timer_get_time());
 #endif

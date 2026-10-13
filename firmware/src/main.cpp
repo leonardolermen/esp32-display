@@ -81,6 +81,9 @@ void showBringUpScreen()
 void setup()
 {
     Serial.begin(115200);
+    // Com a USB ligada e ninguém lendo a serial, cada print esperava até 2 s pelo buffer cheio e congelava a tela.
+    // Sem espera, o log é descartado quando não há leitor e o loop do LVGL nunca para por causa dele.
+    Serial.setTxTimeoutMs(0);
 
     lv_init();
     lv_tick_set_cb([]() -> uint32_t { return millis(); });
