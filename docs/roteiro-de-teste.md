@@ -44,3 +44,8 @@ Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` 
 
 - [ ] Primeiro boot, sem Wi-Fi: mensagem aparece com confete; toque fecha.
 - [ ] Reiniciar: não aparece de novo.
+
+## Boot completo
+
+- [ ] `pio run -t erase` → aniversário → portal → página → senha → reinicia → fotos → Início com relógio.
+- [ ] Desligar e ligar: Início direto em menos de 5 s, fotos e relógio no lugar.

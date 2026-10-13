@@ -107,8 +107,8 @@ void setup()
     touch.begin();
     backlight.begin();
 
-    adminSecret.begin();
     photoStore.begin();
+    adminSecret.begin();
 
     bool configured = adminSecret.isSet() && wifi.hasSavedNetwork();
     if (configured) {
