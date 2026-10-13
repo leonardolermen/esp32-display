@@ -1,13 +1,30 @@
 #include "board/ScreenRotation.h"
 
+namespace {
+
+// Os dois quadros moram na PSRAM, que só é rápida através do cache. Girar linha a linha escreve um pixel a cada
+// 640 bytes e cada escrita custa uma linha de cache inteira: era o que segurava a tela em 4 FPS. Em blocos de
+// 32×32 os 2 KB de origem do bloco ficam no cache enquanto o destino é escrito em sequência.
+constexpr uint16_t TILE = 32;
+
+static_assert(SCREEN_WIDTH % TILE == 0 && SCREEN_HEIGHT % TILE == 0, "the rotation tiles must cover the screen");
+
+}
+
 void Rotation90::rotate(const uint16_t* landscape, uint16_t* portrait) const
 {
-    for (uint16_t y = 0; y < SCREEN_HEIGHT; y++) {
-        const uint16_t* row = landscape + y * SCREEN_WIDTH;
-        uint16_t panelX = PANEL_WIDTH - 1 - y;
+    for (uint16_t tileY = 0; tileY < SCREEN_HEIGHT; tileY += TILE) {
+        for (uint16_t tileX = 0; tileX < SCREEN_WIDTH; tileX += TILE) {
+            for (uint16_t x = tileX; x < tileX + TILE; x++) {
+                const uint16_t* source = landscape + tileY * SCREEN_WIDTH + x;
+                uint16_t* target = portrait + x * PANEL_WIDTH + (PANEL_WIDTH - 1 - tileY);
 
-        for (uint16_t x = 0; x < SCREEN_WIDTH; x++) {
-            portrait[x * PANEL_WIDTH + panelX] = row[x];
+                for (uint16_t step = 0; step < TILE; step++) {
+                    *target = *source;
+                    source += SCREEN_WIDTH;
+                    target--;
+                }
+            }
         }
     }
 }
@@ -19,11 +36,18 @@ ScreenPoint Rotation90::toScreen(PanelPoint touched) const
 
 void Rotation270::rotate(const uint16_t* landscape, uint16_t* portrait) const
 {
-    for (uint16_t y = 0; y < SCREEN_HEIGHT; y++) {
-        const uint16_t* row = landscape + y * SCREEN_WIDTH;
+    for (uint16_t tileY = 0; tileY < SCREEN_HEIGHT; tileY += TILE) {
+        for (uint16_t tileX = 0; tileX < SCREEN_WIDTH; tileX += TILE) {
+            for (uint16_t x = tileX; x < tileX + TILE; x++) {
+                const uint16_t* source = landscape + tileY * SCREEN_WIDTH + x;
+                uint16_t* target = portrait + (PANEL_HEIGHT - 1 - x) * PANEL_WIDTH + tileY;
 
-        for (uint16_t x = 0; x < SCREEN_WIDTH; x++) {
-            portrait[(PANEL_HEIGHT - 1 - x) * PANEL_WIDTH + y] = row[x];
+                for (uint16_t step = 0; step < TILE; step++) {
+                    *target = *source;
+                    source += SCREEN_WIDTH;
+                    target++;
+                }
+            }
         }
     }
 }
