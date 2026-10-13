@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claudinho</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header><h1>Claudinho</h1><span id="clock"></span></header>
+<main>
+  <section id="password" class="card">
+    <h2>Senha de administrador</h2>
+    <p class="hint">Protege as fotos e as configurações. De 8 a 64 caracteres.</p>
+    <form id="password-form">
+      <input type="password" id="password-value" placeholder="senha" autocomplete="new-password">
+      <input type="password" id="password-confirm" placeholder="confirme a senha" autocomplete="new-password">
+      <p class="error" id="password-error"></p>
+      <button type="submit">Salvar senha</button>
+    </form>
+  </section>
+  <section id="photos" class="card hidden">
+    <h2>Fotos</h2>
+    <p class="hint">O navegador recorta para a tela (480×320) antes de enviar.</p>
+    <div id="photo-grid"></div>
+    <label class="button">Enviar fotos<input type="file" id="photo-input" accept="image/*" multiple hidden></label>
+    <p id="photo-progress"></p>
+  </section>
+</main>
+<script src="/app.js" type="module"></script>
+</body>
+</html>

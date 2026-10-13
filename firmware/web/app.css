@@ -1,0 +1,19 @@
+:root { --bg: #1F1E1C; --surface: #34322F; --text: #F5F1EA; --muted: #A8A29A; --accent: #D97757; --danger: #E24B4A; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+header { display: flex; justify-content: space-between; align-items: baseline; padding: 20px 24px 0; }
+h1 { font-size: 22px; font-weight: 500; margin: 0; }
+h2 { font-size: 18px; font-weight: 500; margin: 0 0 4px; }
+main { display: grid; gap: 16px; padding: 16px 24px 40px; max-width: 720px; margin: 0 auto; }
+.card { background: var(--surface); border-radius: 12px; padding: 16px 20px; }
+.hint { color: var(--muted); margin: 0 0 12px; font-size: 14px; }
+.hidden { display: none; }
+input[type=password] { display: block; width: 100%; margin-bottom: 8px; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid #4a4845; background: var(--bg); color: var(--text); }
+button, .button { display: inline-block; padding: 10px 16px; border-radius: 8px; border: 0; background: var(--accent);
+  color: #2b1209; font-weight: 500; cursor: pointer; }
+.error { color: var(--danger); min-height: 1.5em; margin: 0 0 8px; font-size: 14px; }
+#photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 12px; }
+#photo-grid figure { margin: 0; position: relative; }
+#photo-grid img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 8px; display: block; }
+#photo-grid button { position: absolute; top: 6px; right: 6px; padding: 4px 8px; background: rgba(0,0,0,.6); color: #fff; }
