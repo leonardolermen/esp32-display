@@ -39,3 +39,8 @@ Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` 
 - [ ] Fotos trocam com fade a cada ~12 s, sem repetir até dar a volta.
 - [ ] Relógio e data corretos; sem internet, a faixa fica escondida.
 - [ ] Sem fotos: convite para mandar fotos.
+
+## Aniversário
+
+- [ ] Primeiro boot, sem Wi-Fi: mensagem aparece com confete; toque fecha.
+- [ ] Reiniciar: não aparece de novo.

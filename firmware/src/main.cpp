@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <memory>
 
+#include "birthday/BirthdayCalendar.h"
+#include "birthday/screen/BirthdayOverlay.h"
+#include "birthday/storage/BirthdayMemory.h"
 #include "board/ScreenRotation.h"
 #include "board/device/Backlight.h"
 #include "board/device/Display.h"
@@ -18,6 +21,7 @@
 #include "setup/storage/AdminSecret.h"
 #include "setup/web/AdminRoutes.h"
 #include "setup/web/HttpServer.h"
+#include "support/LocalTime.h"
 #include "support/Published.h"
 #include "support/device/NetworkClock.h"
 #include "theme/Theme.h"
@@ -40,6 +44,8 @@ HttpServer http(adminSecret);
 AdminRoutes adminRoutes(http, adminSecret, wifi);
 PhotoStore photoStore;
 PhotoRoutes photoRoutes(http, photoStore);
+BirthdayMemory birthdayMemory;
+BirthdayOverlay birthdayOverlay;
 
 uint32_t seenSetupVersion = 0;
 bool setupWasPending = false;
@@ -111,6 +117,15 @@ void setup()
         navigator.add(std::make_unique<SetupPage>(setupState));
     }
     navigator.begin();
+
+    // A tarefa de rede sobe em paralelo: a mensagem nunca espera Wi-Fi.
+    birthdayMemory.begin();
+    if (BirthdayCalendar::shouldShow(birthdayMemory.neverShown(), LocalTime::now(), birthdayMemory.lastShownYear())) {
+        birthdayOverlay.show([]() {
+            std::optional<LocalTime> now = LocalTime::now();
+            birthdayMemory.markShown(now ? std::optional<int>(now->year) : std::nullopt);
+        });
+    }
 
     xTaskCreatePinnedToCore(networkTask, "network", 8192, nullptr, 1, nullptr, 0);
 }
