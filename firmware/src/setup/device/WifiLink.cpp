@@ -12,6 +12,8 @@ constexpr const char* HOTSPOT_NAME = "Claudinho";
 
 bool WifiLink::hasSavedNetwork()
 {
+    // A rede salva vem da config da estação, que só existe com o driver iniciado; begin() repete o mode sem custo.
+    WiFi.mode(WIFI_STA);
     return manager.getWiFiIsSaved();
 }
 

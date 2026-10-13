@@ -9,6 +9,7 @@
 #include "board/device/Display.h"
 #include "board/device/Touch.h"
 #include "navigation/screen/Navigator.h"
+#include "photos/screen/HomePage.h"
 #include "photos/storage/PhotoStore.h"
 #include "photos/web/PhotoRoutes.h"
 #include "setup/SetupProgress.h"
@@ -103,8 +104,12 @@ void setup()
     adminSecret.begin();
     photoStore.begin();
 
-    // As páginas normais chegam nas próximas tarefas; até lá a tela de configuração fica mesmo depois de pronta.
-    navigator.add(std::make_unique<SetupPage>(setupState));
+    bool configured = adminSecret.isSet() && wifi.hasSavedNetwork();
+    if (configured) {
+        navigator.add(std::make_unique<HomePage>(photoStore));
+    } else {
+        navigator.add(std::make_unique<SetupPage>(setupState));
+    }
     navigator.begin();
 
     xTaskCreatePinnedToCore(networkTask, "network", 8192, nullptr, 1, nullptr, 0);

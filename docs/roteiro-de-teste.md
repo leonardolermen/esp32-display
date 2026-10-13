@@ -33,3 +33,9 @@ Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` 
 - [ ] Panorâmica centrada.
 - [ ] Desligar no meio do envio não deixa arquivo pela metade.
 - [ ] JPEG > 200 KB via curl é recusado com mensagem clara.
+
+## Início
+
+- [ ] Fotos trocam com fade a cada ~12 s, sem repetir até dar a volta.
+- [ ] Relógio e data corretos; sem internet, a faixa fica escondida.
+- [ ] Sem fotos: convite para mandar fotos.
