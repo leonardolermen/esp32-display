@@ -1,0 +1,4 @@
+firmware/.pio/
+firmware/.vscode/
+firmware/tools/fonts/.cache/
+.DS_Store
