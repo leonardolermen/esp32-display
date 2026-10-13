@@ -9,6 +9,8 @@
 #include "board/device/Display.h"
 #include "board/device/Touch.h"
 #include "navigation/screen/Navigator.h"
+#include "theme/Fonts.h"
+#include "theme/Theme.h"
 
 namespace {
 
@@ -39,9 +41,8 @@ public:
         lv_obj_set_style_bg_color(parent, lv_color_hex(background), 0);
         lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
 
-        lv_obj_t* label = lv_label_create(parent);
+        lv_obj_t* label = theme::label(parent, fonts::title, theme::text());
         lv_label_set_text(label, title);
-        lv_obj_set_style_text_color(label, lv_color_hex(0xF5F1EA), 0);
         lv_obj_center(label);
     }
 
@@ -63,12 +64,13 @@ void setup()
     lv_tick_set_cb([]() -> uint32_t { return millis(); });
     lv_log_register_print_cb(logToSerial);
 
-    display.begin();
+    lv_display_t* lvDisplay = display.begin();
+    theme::apply(lvDisplay);
     touch.begin();
     backlight.begin();
 
-    navigator.add(std::make_unique<ExamplePage>("Página A", 0x3B6D11));
-    navigator.add(std::make_unique<ExamplePage>("Página B", 0x185FA5));
+    navigator.add(std::make_unique<ExamplePage>("Página A — ação, coração", 0x3B6D11));
+    navigator.add(std::make_unique<ExamplePage>("Página B — ação, coração", 0x185FA5));
     navigator.begin();
 }
 

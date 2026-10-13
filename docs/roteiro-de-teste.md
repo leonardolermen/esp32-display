@@ -15,3 +15,7 @@ Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` 
 
 - [ ] Deslizar para a esquerda avança; para a direita volta; nas pontas não acontece nada.
 - [ ] Pontinhos acompanham a página atual.
+
+## Tema
+
+- [ ] Acentos (ç, ã, é) aparecem nas fontes.
