@@ -1,13 +1,9 @@
 #include "crypto/device/MarketFeed.h"
 
 #include <Arduino.h>
-#include <HTTPClient.h>
-#include <NetworkClientSecure.h>
 #include <WiFi.h>
-#include <esp_heap_caps.h>
 
 #include <algorithm>
-#include <cstring>
 
 #include "crypto/MarketParser.h"
 
@@ -16,9 +12,8 @@ namespace {
 constexpr uint32_t NORMAL_INTERVAL_MILLIS = 60000;
 constexpr uint32_t MAX_BACKOFF_MILLIS = 600000;
 constexpr uint32_t LOOP_SLEEP_MILLIS = 1000;
-constexpr uint16_t TIMEOUT_MILLIS = 5000;
+constexpr int HTTP_OK = 200;
 constexpr int TOO_MANY_REQUESTS = 429;
-constexpr size_t MAX_BODY_BYTES = 64 * 1024;
 // mbedTLS precisa de pilha folgada para o handshake; 12 KB é o que o core recomenda para HTTPS numa tarefa.
 constexpr uint32_t TASK_STACK_BYTES = 12288;
 
@@ -27,60 +22,6 @@ constexpr const char* COINGECKO_URL = "https://api.coingecko.com/api/v3/coins/ma
 constexpr const char* DOLLAR_LAST_URL = "https://economia.awesomeapi.com.br/json/last/USD-BRL";
 constexpr const char* DOLLAR_DAILY_URL = "https://economia.awesomeapi.com.br/json/daily/USD-BRL/30";
 
-}
-
-std::unique_ptr<MarketFeed::Body> MarketFeed::Body::allocate(size_t capacity)
-{
-    char* bytes = static_cast<char*>(heap_caps_malloc(capacity, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-    if (bytes == nullptr) {
-        return nullptr;
-    }
-
-    return std::unique_ptr<Body>(new Body(bytes, capacity));
-}
-
-MarketFeed::Body::Body(char* data, size_t capacity)
-    : bytes(data)
-    , room(capacity)
-{
-}
-
-MarketFeed::Body::~Body()
-{
-    heap_caps_free(bytes);
-}
-
-std::string_view MarketFeed::Body::view() const
-{
-    return std::string_view(bytes, used);
-}
-
-size_t MarketFeed::Body::write(uint8_t byte)
-{
-    return write(&byte, 1);
-}
-
-size_t MarketFeed::Body::write(const uint8_t* buffer, size_t size)
-{
-    size_t accepted = std::min(size, room - used);
-    memcpy(bytes + used, buffer, accepted);
-    used += accepted;
-    return accepted;
-}
-
-int MarketFeed::Body::available()
-{
-    return 0;
-}
-
-int MarketFeed::Body::read()
-{
-    return -1;
-}
-
-int MarketFeed::Body::peek()
-{
-    return -1;
 }
 
 // Tarefa própria: três chamadas HTTPS podem levar dezenas de segundos com rede ruim, e a tarefa de rede precisa
@@ -147,41 +88,25 @@ void MarketFeed::markOffline()
     published.publish(current);
 }
 
-std::unique_ptr<MarketFeed::Body> MarketFeed::fetch(const char* url)
+std::unique_ptr<PsramBuffer> MarketFeed::fetch(const char* url)
 {
-    NetworkClientSecure client;
-    // Certificados raiz embutidos no core: a conexão é verificada de verdade, sem setInsecure.
-    client.useBuiltinCACertBundle();
-    client.setTimeout(TIMEOUT_MILLIS);
+    HttpsRequest request;
+    request.url = url;
 
-    HTTPClient http;
-    http.setTimeout(TIMEOUT_MILLIS);
-    http.setConnectTimeout(TIMEOUT_MILLIS);
-    if (!http.begin(client, url)) {
-        return nullptr;
-    }
-
-    int status = http.GET();
-    if (status == TOO_MANY_REQUESTS) {
+    HttpsResponse response = Https::send(request);
+    if (response.status == TOO_MANY_REQUESTS) {
         rateLimited = true;
     }
-    if (status != HTTP_CODE_OK) {
-        http.end();
+    if (response.status != HTTP_OK) {
         return nullptr;
     }
 
-    // writeToStream decodifica o chunked do CoinGecko e grava direto na PSRAM; getString() copiaria tudo para a
-    // heap interna e o stream cru traria os tamanhos dos chunks no meio do JSON.
-    std::unique_ptr<Body> body = Body::allocate(MAX_BODY_BYTES);
-    int received = body ? http.writeToStream(body.get()) : 0;
-    http.end();
-
-    return received > 0 ? std::move(body) : nullptr;
+    return std::move(response.body);
 }
 
 bool MarketFeed::refreshCrypto()
 {
-    std::unique_ptr<Body> body = fetch(COINGECKO_URL);
+    std::unique_ptr<PsramBuffer> body = fetch(COINGECKO_URL);
     if (!body) {
         return false;
     }
@@ -200,7 +125,7 @@ bool MarketFeed::refreshCrypto()
 
 bool MarketFeed::refreshDollar()
 {
-    std::unique_ptr<Body> last = fetch(DOLLAR_LAST_URL);
+    std::unique_ptr<PsramBuffer> last = fetch(DOLLAR_LAST_URL);
     if (!last) {
         return false;
     }
@@ -210,7 +135,7 @@ bool MarketFeed::refreshDollar()
         return false;
     }
 
-    std::unique_ptr<Body> daily = fetch(DOLLAR_DAILY_URL);
+    std::unique_ptr<PsramBuffer> daily = fetch(DOLLAR_DAILY_URL);
     std::vector<float> series = daily ? MarketParser::dollarSeries(daily->view()) : std::vector<float>();
     current.quotes[static_cast<size_t>(Asset::Dollar)] = MarketParser::dollarQuote(*bid, std::move(series));
     return daily != nullptr;
