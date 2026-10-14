@@ -34,6 +34,20 @@
     <button type="button" id="birthday-replay">Mostrar a mensagem de novo</button>
     <span id="birthday-status" class="hint"></span>
   </section>
+  <section id="spotify" class="card hidden">
+    <h2>Spotify</h2>
+    <p class="hint" id="spotify-status">Carregando…</p>
+    <input type="text" id="spotify-client" placeholder="Client ID" autocomplete="off" spellcheck="false">
+    <button type="button" id="spotify-connect">Conectar</button>
+    <button type="button" id="spotify-disconnect" class="secondary hidden">Desconectar</button>
+    <p class="error" id="spotify-message"></p>
+    <details>
+      <summary>O login não voltou para cá?</summary>
+      <p class="hint">Copie o endereço da página onde o login parou e cole aqui.</p>
+      <input type="text" id="spotify-paste" placeholder="https://…/callback/?code=…" autocomplete="off">
+      <button type="button" id="spotify-paste-send">Usar este link</button>
+    </details>
+  </section>
 </main>
 <script src="/app.js" type="module"></script>
 </body>
