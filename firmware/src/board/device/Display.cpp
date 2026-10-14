@@ -3,11 +3,17 @@
 #include <esp_heap_caps.h>
 #include <esp_timer.h>
 
+#include <algorithm>
+#include <cstring>
+
 #include "board/BoardPins.h"
 
 namespace {
 
 constexpr size_t FRAME_BYTES = SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(uint16_t);
+constexpr size_t FRAME_PIXELS = SCREEN_WIDTH * SCREEN_HEIGHT;
+constexpr size_t CHUNK_PIXELS = ESP32QSPI_MAX_PIXELS_AT_ONCE;
+constexpr size_t DMA_ALIGNMENT = 16;
 
 uint16_t* allocateFrame()
 {
@@ -37,6 +43,14 @@ lv_display_t* Display::begin()
 
     screenFrame = allocateFrame();
     panelFrame = allocateFrame();
+    // O quadro fica na PSRAM, que o DMA do SPI não lê: sem este buffer o driver alocava 16 KB de RAM interna a cada
+    // pedaço do quadro. Com o TLS ocupando essa RAM, a alocação falhava e o driver abortava (reset em loop). Reservado
+    // uma vez no boot, quando ainda há memória de sobra.
+    dmaChunk = static_cast<uint16_t*>(heap_caps_aligned_alloc(DMA_ALIGNMENT, CHUNK_PIXELS * sizeof(uint16_t),
+        MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL));
+    if (dmaChunk == nullptr) {
+        log_e("no internal DMA memory for the display chunk");
+    }
 
     lv_display_t* display = lv_display_create(SCREEN_WIDTH, SCREEN_HEIGHT);
     lv_display_set_user_data(display, this);
@@ -103,10 +117,29 @@ void Display::flush(lv_display_t* display, const lv_area_t*, uint8_t* pixels)
 #ifdef CLAUDINHO_PROFILE_FLUSH
     int64_t drawStart = esp_timer_get_time();
 #endif
-    self->panel->draw16bitBeRGBBitmap(0, 0, self->panelFrame, PANEL_WIDTH, PANEL_HEIGHT);
+    self->sendPanelFrame();
 #ifdef CLAUDINHO_PROFILE_FLUSH
     reportFlushProfile(rotateStart, drawStart, esp_timer_get_time());
 #endif
 
     lv_display_flush_ready(display);
+}
+
+// Mesma sequência do draw16bitBeRGBBitmap da biblioteca, mas cada pedaço sai do buffer interno: o writeBytes do
+// barramento continua a escrita de onde parou (comando 0x3C), então a janela é aberta uma vez só.
+void Display::sendPanelFrame()
+{
+    if (dmaChunk == nullptr) {
+        panel->draw16bitBeRGBBitmap(0, 0, panelFrame, PANEL_WIDTH, PANEL_HEIGHT);
+        return;
+    }
+
+    panel->startWrite();
+    panel->writeAddrWindow(0, 0, PANEL_WIDTH, PANEL_HEIGHT);
+    for (size_t offset = 0; offset < FRAME_PIXELS; offset += CHUNK_PIXELS) {
+        size_t pixels = std::min(CHUNK_PIXELS, FRAME_PIXELS - offset);
+        memcpy(dmaChunk, panelFrame + offset, pixels * sizeof(uint16_t));
+        bus->writeBytes(reinterpret_cast<uint8_t*>(dmaChunk), pixels * sizeof(uint16_t));
+    }
+    panel->endWrite();
 }

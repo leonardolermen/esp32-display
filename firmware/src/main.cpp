@@ -168,6 +168,8 @@ void setup()
     // Sem espera, o log é descartado quando não há leitor e o loop do LVGL nunca para por causa dele.
     Serial.setTxTimeoutMs(0);
 
+    NetworkClock::applyTimeZone();
+
     lv_init();
     lv_tick_set_cb([]() -> uint32_t { return millis(); });
     lv_log_register_print_cb(logToSerial);
