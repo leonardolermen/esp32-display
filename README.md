@@ -37,12 +37,12 @@ embutida no firmware, então não precisa.
 1. Ligue. A mensagem de aniversário aparece; toque para fechar.
 2. A tela mostra um QR. Escaneie com o celular: ele entra na rede `Claudinho` e abre o portal para escolher o Wi-Fi
    de casa.
-3. Conectou: a tela mostra o QR de `http://claudinho.local` e o IP. Abra no celular ou no computador e crie a senha
-   de administrador (8 a 64 caracteres). O aparelho reinicia já no Início.
+3. Conectou: a tela mostra o QR de `http://claudinho.local` e o IP. Abra no celular ou no computador e crie o PIN
+   de administrador, como o do celular (4 a 6 números). O aparelho reinicia já no Início.
 
 ## Mandar fotos
 
-Abra `http://claudinho.local`, entre com usuário `admin` e a senha, e use **Enviar fotos**. O navegador recorta cada
+Abra `http://claudinho.local`, entre com usuário `admin` e o PIN, e use **Enviar fotos**. O navegador recorta cada
 foto para 480×320 antes de enviar (em fotos em pé o recorte fica no terço de cima, onde estão os rostos). Dá para
 apagar pela mesma página. Limites: 200 KB por foto, 200 fotos.
 
@@ -67,8 +67,9 @@ O que só se vê na placa está em [docs/roteiro-de-teste.md](docs/roteiro-de-te
 | `firmware/src/board/` | tela, touch, backlight e a rotação de quadros |
 | `firmware/src/navigation/` | `Page` e o `Navigator` (deslize entre páginas) |
 | `firmware/src/theme/` | cores e fontes Inter |
-| `firmware/src/setup/` | Wi-Fi, portal cativo, senha de administrador, servidor HTTP e tela de configuração |
+| `firmware/src/setup/` | Wi-Fi, portal cativo, PIN de administrador, servidor HTTP e tela de configuração |
 | `firmware/src/photos/` | fotos: envio pelo navegador, armazenamento, carrossel do Início |
+| `firmware/src/crypto/` | cotações: Bitcoin, Ethereum e dólar em reais com sparkline |
 | `firmware/src/birthday/` | a mensagem de aniversário |
 | `firmware/src/support/` | o que serve a todos: `Published<T>`, hora local, relógio NTP |
 | `firmware/web/` | a página servida em `claudinho.local` |
@@ -87,6 +88,6 @@ resto é C++17 puro e roda no PC.
 
 ## Ideias para você
 
-Clima, GitHub (contribuições, PRs, CI), cotações, recados e fotos por Telegram, placar de futebol, pomodoro,
+Clima, GitHub (contribuições, PRs, CI), recados e fotos por Telegram, placar de futebol, pomodoro,
 microSD, som, simulador no PC, e uma API de "página genérica" para alimentar a tela de qualquer linguagem (Go
 incluso). O [guia de páginas](docs/como-criar-uma-pagina.md) mostra por onde começar.

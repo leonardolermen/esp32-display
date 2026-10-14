@@ -32,7 +32,7 @@ std::string decodeBase64(const String& encoded)
     return std::string(reinterpret_cast<const char*>(decoded.data()), written);
 }
 
-// O authenticate() do ESPAsyncWebServer compara com uma senha fixa; a nossa vem da NVS e pode mudar, então o
+// O authenticate() do ESPAsyncWebServer compara com um segredo fixo; o PIN vem da NVS e pode mudar, então o
 // header Basic é decodificado aqui e comparado com AdminSecret::matches.
 bool carriesAdminCredentials(AsyncWebServerRequest* request, const AdminSecret& secret)
 {

@@ -14,8 +14,8 @@
 #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
 #define LV_LOG_PRINTF 0
 
-#define LV_USE_SYSMON 1
-#define LV_USE_PERF_MONITOR 1
+#define LV_USE_SYSMON 0
+#define LV_USE_PERF_MONITOR 0
 
 #define LV_USE_QRCODE 1
 

@@ -4,13 +4,13 @@
 
 #include <string>
 
-#include "setup/AdminPassword.h"
+#include "setup/AdminPin.h"
 
 class AdminSecret {
 public:
     void begin();
     bool isSet() const;
-    void save(const AdminPassword& password);
+    void save(const AdminPin& pin);
     bool matches(const std::string& candidate) const;
 
 private:

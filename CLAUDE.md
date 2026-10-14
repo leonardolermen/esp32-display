@@ -29,5 +29,8 @@ Valem as regras de `~/.claude/CLAUDE.md`. Aqui só o que é específico deste fi
 
 ## Comandos (de dentro de `firmware/`)
 
+- No Windows o core do PlatformIO fica em `C:\pio` (`PLATFORMIO_CORE_DIR`): na pasta padrão `~/.platformio` a
+  extração do core do ESP32 estoura o limite de 260 caracteres de caminho.
+
 - `pio run -e board -t upload` compila e grava; `pio device monitor` lê o serial.
 - `pio test -e native` roda os testes.

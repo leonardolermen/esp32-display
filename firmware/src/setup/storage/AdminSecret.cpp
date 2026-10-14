@@ -3,6 +3,7 @@
 namespace {
 
 constexpr const char* NAMESPACE = "admin";
+// A chave continua "password" na NVS: trocar o nome apagaria o PIN de quem já configurou.
 constexpr const char* KEY = "password";
 
 }
@@ -18,9 +19,9 @@ bool AdminSecret::isSet() const
     return !stored.empty();
 }
 
-void AdminSecret::save(const AdminPassword& password)
+void AdminSecret::save(const AdminPin& pin)
 {
-    stored = password.value();
+    stored = pin.value();
     preferences.putString(KEY, stored.c_str());
 }
 

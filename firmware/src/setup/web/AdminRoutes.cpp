@@ -2,7 +2,7 @@
 
 #include <ArduinoJson.h>
 
-#include "setup/AdminPassword.h"
+#include "setup/AdminPin.h"
 #include "support/LocalTime.h"
 
 AdminRoutes::AdminRoutes(HttpServer& http, AdminSecret& secret, const WifiLink& wifi)
@@ -27,26 +27,26 @@ void AdminRoutes::begin()
         request->send(200, "application/json", body);
     });
 
-    http.raw().on("/api/admin/password", HTTP_POST, [](AsyncWebServerRequest*) {}, nullptr,
+    http.raw().on("/api/admin/pin", HTTP_POST, [](AsyncWebServerRequest*) {}, nullptr,
         [this](AsyncWebServerRequest* request, uint8_t* data, size_t length, size_t, size_t) {
-            // Trocar uma senha existente exige estar autenticado com a atual.
+            // Trocar um PIN existente exige estar autenticado com o atual.
             if (secret.isSet() && !http.authorize(request)) {
                 return;
             }
 
             JsonDocument document;
             if (deserializeJson(document, data, length) != DeserializationError::Ok) {
-                request->send(400, "application/json", "{\"field\":\"password\",\"error\":\"JSON inválido\"}");
+                request->send(400, "application/json", "{\"field\":\"pin\",\"error\":\"JSON inválido\"}");
                 return;
             }
 
-            std::optional<AdminPassword> password = AdminPassword::parse(document["password"] | "");
-            if (!password) {
-                request->send(400, "application/json", "{\"field\":\"password\",\"error\":\"8 a 64 caracteres\"}");
+            std::optional<AdminPin> pin = AdminPin::parse(document["pin"] | "");
+            if (!pin) {
+                request->send(400, "application/json", "{\"field\":\"pin\",\"error\":\"4 a 6 dígitos\"}");
                 return;
             }
 
-            secret.save(*password);
+            secret.save(*pin);
             request->send(204);
         });
 }

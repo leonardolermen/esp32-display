@@ -1,32 +1,39 @@
-import { cropToJpeg } from '/crop.js';
+import { composeToJpeg } from '/crop.js';
 
 const status = await fetch('/api/status').then((response) => response.json());
 
 document.getElementById('clock').textContent = status.time;
 document.getElementById('photos').classList.toggle('hidden', !status.adminSet);
+document.getElementById('birthday').classList.toggle('hidden', !status.adminSet);
 
-const form = document.getElementById('password-form');
-const error = document.getElementById('password-error');
+if (status.adminSet) {
+    document.getElementById('pin-title').textContent = 'Trocar o PIN';
+    document.getElementById('pin-hint').textContent = 'Já existe um PIN. Digite o novo, de 4 a 6 números.';
+    document.getElementById('pin-submit').textContent = 'Trocar PIN';
+}
+
+const form = document.getElementById('pin-form');
+const error = document.getElementById('pin-error');
 
 form.addEventListener('submit', async (event) => {
     event.preventDefault();
     error.textContent = '';
 
-    const password = document.getElementById('password-value').value;
-    const confirm = document.getElementById('password-confirm').value;
-    if (password.trim().length < 8 || password.trim().length > 64) {
-        error.textContent = 'De 8 a 64 caracteres.';
+    const pin = document.getElementById('pin-value').value.trim();
+    const confirm = document.getElementById('pin-confirm').value.trim();
+    if (!/^[0-9]{4,6}$/.test(pin)) {
+        error.textContent = 'De 4 a 6 números.';
         return;
     }
-    if (password !== confirm) {
-        error.textContent = 'As duas senhas não batem.';
+    if (pin !== confirm) {
+        error.textContent = 'Os dois PINs não batem.';
         return;
     }
 
-    const response = await fetch('/api/admin/password', {
+    const response = await fetch('/api/admin/pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ pin }),
     });
     if (!response.ok) {
         const body = await response.json().catch(() => ({ error: 'não deu certo' }));
@@ -68,7 +75,7 @@ document.getElementById('photo-input').addEventListener('change', async (event) 
     for (const [position, file] of files.entries()) {
         progress.textContent = `enviando ${position + 1} de ${files.length}…`;
 
-        const jpeg = await cropToJpeg(file);
+        const jpeg = await composeToJpeg(file);
         const body = new FormData();
         body.append('photo', jpeg, 'photo.jpg');
         const response = await fetch('/api/photos', { method: 'POST', body });
@@ -82,6 +89,11 @@ document.getElementById('photo-input').addEventListener('change', async (event) 
     progress.textContent = files.length ? 'pronto' : '';
     event.target.value = '';
     refreshPhotos();
+});
+
+document.getElementById('birthday-replay').addEventListener('click', async () => {
+    const response = await fetch('/api/birthday/replay', { method: 'POST' });
+    document.getElementById('birthday-status').textContent = response.ok ? 'olha a tela' : 'não deu certo';
 });
 
 if (status.adminSet) {

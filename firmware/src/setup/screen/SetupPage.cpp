@@ -9,7 +9,7 @@ constexpr int32_t QR_SIZE = 120;
 constexpr const char* STEP_TEXTS[] = {
     "1  escaneie pra conectar no Wi-Fi",
     "2  abra claudinho.local",
-    "3  crie a senha de administrador",
+    "3  crie o PIN de administrador",
 };
 
 }
