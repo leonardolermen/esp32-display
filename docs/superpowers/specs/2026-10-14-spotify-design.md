@@ -93,8 +93,9 @@ o aparelho mudar. `404 NO_ACTIVE_DEVICE` → estado "sem aparelho".
 - JPEGDEC decodifica para RGB565; a redução para **200×200** é feita uma vez, por média de blocos (área), num buffer
   na PSRAM. Lógica pura: `CoverScaler::downscale(src, srcW, srcH, dst, 200)`.
 - Cor predominante: histograma de 4 bits por canal (4096 caixas) sobre pixels amostrados a cada 4, ignorando quase
-  pretos e quase brancos; a caixa mais cheia vira a cor; depois escurece até a luminância relativa ficar ≤ 0,18
-  (contraste com o texto `#F5F1EA` ≥ 4,5). Sem pixel útil → `theme::surface()`.
+  pretos e quase brancos; a caixa mais cheia vira a cor (média dos pixels dela); depois escurece até a luminância
+  relativa ficar ≤ 0,15 (o texto `#F5F1EA` tem 0,88, e (0,88 + 0,05) / (0,15 + 0,05) = 4,65 ≥ 4,5). Sem pixel útil →
+  `theme::surface()`.
 - O fundo da página faz transição de 400 ms da cor anterior para a nova.
 
 ## 8. Tela
@@ -176,7 +177,7 @@ No PC (`pio test -e native`):
 - `test_progress`: avança com o relógio quando tocando; para quando pausado; nunca passa da duração; `m:ss`.
 - `test_cover_scaler`: 300×300 de uma cor → 200×200 da mesma cor; tabuleiro → cinza médio; 640×640 → 200×200.
 - `test_dominant_color`: imagem vermelha → vermelho escurecido; preto e branco puros ignorados; luminância final
-  ≤ 0,18.
+  ≤ 0,15.
 
 No Node (`node --test`): `relay.test.mjs` com IPs privados aceitos, públicos e `localhost` recusados, state malformado,
 porta não numérica.
