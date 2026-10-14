@@ -6,6 +6,12 @@ document.getElementById('clock').textContent = status.time;
 document.getElementById('photos').classList.toggle('hidden', !status.adminSet);
 document.getElementById('birthday').classList.toggle('hidden', !status.adminSet);
 
+if (status.adminSet) {
+    document.getElementById('pin-title').textContent = 'Trocar o PIN';
+    document.getElementById('pin-hint').textContent = 'Já existe um PIN. Digite o novo, de 4 a 6 números.';
+    document.getElementById('pin-submit').textContent = 'Trocar PIN';
+}
+
 const form = document.getElementById('pin-form');
 const error = document.getElementById('pin-error');
 
