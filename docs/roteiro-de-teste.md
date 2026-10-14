@@ -54,3 +54,10 @@ Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` 
 - [ ] Placa ligada atravessando a meia-noite de 21 para 22/10: a mensagem aparece em até um minuto.
 - [ ] Dois envios de foto ao mesmo tempo: o segundo recebe "outro envio em andamento"; o primeiro grava inteiro.
 - [ ] Foto nova aparece no carrossel sem reiniciar.
+
+## Cripto
+
+- [ ] Em até 2 min depois do Wi-Fi, a página mostra BTC, ETH e dólar; valores batem com coingecko.com e com o Google.
+- [ ] Variação positiva em verde, negativa em vermelho, com a sparkline na mesma cor.
+- [ ] Roteador desligado: valores ficam e o rodapé vira "visto às HH:MM"; religado, volta a "atualizado" em até 2 min.
+- [ ] Página aberta antes da primeira resposta: traços e "buscando…", sem travar.

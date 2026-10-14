@@ -12,6 +12,7 @@
 #include "board/device/Backlight.h"
 #include "board/device/Display.h"
 #include "board/device/Touch.h"
+#include "crypto/device/MarketFeed.h"
 #include "navigation/screen/Navigator.h"
 #include "photos/screen/HomePage.h"
 #include "photos/storage/PhotoStore.h"
@@ -48,6 +49,7 @@ PhotoRoutes photoRoutes(http, photoStore);
 BirthdayMemory birthdayMemory;
 BirthdayOverlay birthdayOverlay;
 BirthdayRoutes birthdayRoutes(http);
+MarketFeed marketFeed;
 
 constexpr uint32_t BIRTHDAY_CHECK_EVERY_MILLIS = 60000;
 
@@ -74,6 +76,7 @@ void networkTask(void*)
 
     for (;;) {
         wifi.process();
+        marketFeed.poll(millis(), wifi.connected());
         setupState.publish(SetupProgress::compute(wifi.connected(), wifi.ip(), adminSecret.isSet()));
         vTaskDelay(pdMS_TO_TICKS(500));
     }
