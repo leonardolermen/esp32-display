@@ -1,0 +1,375 @@
+#include "spotify/screen/SpotifyPage.h"
+
+// O lvgl.h do 9.4 não expõe o cache de imagens. Hoje ele está desligado (LV_CACHE_DEF_SIZE 0) e a limpeza não faz
+// nada; fica para que ligar o cache não faça a página mostrar a capa anterior.
+#include <src/misc/cache/instance/lv_image_cache.h>
+
+#include "spotify/Progress.h"
+#include "theme/Fonts.h"
+#include "theme/Theme.h"
+
+namespace {
+
+constexpr int32_t COVER_X = 20;
+// Capa e coluna de texto ocupam a mesma faixa vertical, centrada acima dos pontinhos da navegação.
+constexpr int32_t COVER_Y = 50;
+constexpr int32_t COVER_RADIUS = 12;
+constexpr int32_t DETAILS_X = 240;
+constexpr int32_t DETAILS_WIDTH = 220;
+constexpr int32_t CONTROL_SIZE = 52;
+constexpr int32_t ROW_GAP = 4;
+constexpr int32_t QR_SIZE = 140;
+constexpr int32_t PROGRESS_SCALE = 1000;
+constexpr uint32_t PROGRESS_EVERY_MILLIS = 250;
+constexpr uint32_t FADE_MILLIS = 400;
+constexpr uint32_t STALE_NOTICE_AFTER_MILLIS = 60000;
+
+// Contêiner sem estilo do tema, que só organiza os filhos e deixa o deslize passar para o Navigator.
+lv_obj_t* makeLayout(lv_obj_t* parent, lv_flex_flow_t flow)
+{
+    lv_obj_t* layout = lv_obj_create(parent);
+    lv_obj_remove_style_all(layout);
+    lv_obj_set_flex_flow(layout, flow);
+    lv_obj_remove_flag(layout, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(layout, LV_OBJ_FLAG_CLICKABLE);
+    return layout;
+}
+
+lv_obj_t* makeLine(lv_obj_t* parent, const lv_font_t* font, lv_color_t color, int32_t lines)
+{
+    lv_obj_t* label = theme::label(parent, font, color);
+    lv_obj_set_width(label, LV_PCT(100));
+    lv_obj_set_height(label, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_height(label, lines * lv_font_get_line_height(font), 0);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+    return label;
+}
+
+lv_obj_t* makeControl(lv_obj_t* parent, const char* symbol, lv_event_cb_t callback, void* page)
+{
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_remove_style_all(button);
+    lv_obj_set_size(button, CONTROL_SIZE, CONTROL_SIZE);
+    lv_obj_set_style_radius(button, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(button, theme::text(), 0);
+    lv_obj_set_style_bg_opa(button, LV_OPA_20, LV_STATE_PRESSED);
+    lv_obj_add_flag(button, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_add_event_cb(button, callback, LV_EVENT_CLICKED, page);
+
+    lv_obj_t* label = theme::label(button, fonts::title, theme::text());
+    lv_label_set_text(label, symbol);
+    lv_obj_center(label);
+    return label;
+}
+
+SpotifyPage* pageOf(lv_event_t* event)
+{
+    return static_cast<SpotifyPage*>(lv_event_get_user_data(event));
+}
+
+}
+
+SpotifyPage::SpotifyPage(SpotifyClient& client)
+    : client(client)
+{
+}
+
+void SpotifyPage::build(lv_obj_t* parent)
+{
+    root = parent;
+    lv_obj_set_style_bg_color(parent, lv_color_hex(DominantColor::FALLBACK), 0);
+    lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
+
+    buildCover(parent);
+    buildDetails(parent);
+    buildNotice(parent);
+
+    staleLabel = theme::label(parent, fonts::small, theme::textSecondary());
+    lv_label_set_text(staleLabel, "sem conexão");
+    lv_obj_align(staleLabel, LV_ALIGN_TOP_RIGHT, -12, 10);
+    lv_obj_add_flag(staleLabel, LV_OBJ_FLAG_HIDDEN);
+
+    // Antes da primeira publicação (Wi-Fi ainda subindo) a página já mostra o aviso, não controles vazios.
+    render(PlayerState{}, 0);
+}
+
+void SpotifyPage::buildCover(lv_obj_t* parent)
+{
+    coverPlaceholder = lv_obj_create(parent);
+    lv_obj_remove_style_all(coverPlaceholder);
+    lv_obj_set_size(coverPlaceholder, COVER_SIZE, COVER_SIZE);
+    lv_obj_set_pos(coverPlaceholder, COVER_X, COVER_Y);
+    lv_obj_set_style_radius(coverPlaceholder, COVER_RADIUS, 0);
+    lv_obj_set_style_bg_color(coverPlaceholder, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(coverPlaceholder, LV_OPA_30, 0);
+    lv_obj_add_flag(coverPlaceholder, LV_OBJ_FLAG_GESTURE_BUBBLE);
+
+    lv_obj_t* note = theme::label(coverPlaceholder, fonts::title, theme::textSecondary());
+    lv_label_set_text(note, LV_SYMBOL_AUDIO);
+    lv_obj_center(note);
+
+    cover = lv_image_create(parent);
+    lv_obj_set_size(cover, COVER_SIZE, COVER_SIZE);
+    lv_obj_set_pos(cover, COVER_X, COVER_Y);
+    lv_obj_set_style_radius(cover, COVER_RADIUS, 0);
+    lv_obj_add_flag(cover, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_add_flag(cover, LV_OBJ_FLAG_HIDDEN);
+}
+
+// Uma coluna da altura da capa: o título encosta no topo dela e o volume na base; o espaço que sobra fica entre o
+// texto e o progresso.
+void SpotifyPage::buildDetails(lv_obj_t* parent)
+{
+    lv_obj_t* column = makeLayout(parent, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_pos(column, DETAILS_X, COVER_Y);
+    lv_obj_set_size(column, DETAILS_WIDTH, COVER_SIZE);
+    lv_obj_set_style_pad_row(column, ROW_GAP, 0);
+
+    title = makeLine(column, fonts::large, theme::text(), 2);
+    artists = makeLine(column, fonts::medium, theme::text(), 1);
+    device = makeLine(column, fonts::small, theme::textSecondary(), 1);
+
+    lv_obj_t* spacer = makeLayout(column, LV_FLEX_FLOW_ROW);
+    lv_obj_set_width(spacer, LV_PCT(100));
+    lv_obj_set_flex_grow(spacer, 1);
+
+    progressBar = lv_bar_create(column);
+    lv_obj_set_size(progressBar, LV_PCT(100), 4);
+    lv_bar_set_range(progressBar, 0, PROGRESS_SCALE);
+    lv_obj_set_style_bg_color(progressBar, theme::text(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(progressBar, LV_OPA_20, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(progressBar, theme::text(), LV_PART_INDICATOR);
+
+    lv_obj_t* times = makeLayout(column, LV_FLEX_FLOW_ROW);
+    lv_obj_set_size(times, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_align(times, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    elapsed = theme::label(times, fonts::small, theme::textSecondary());
+    total = theme::label(times, fonts::small, theme::textSecondary());
+
+    buildControls(column);
+}
+
+void SpotifyPage::buildControls(lv_obj_t* column)
+{
+    lv_obj_t* buttons = makeLayout(column, LV_FLEX_FLOW_ROW);
+    lv_obj_set_size(buttons, LV_PCT(100), CONTROL_SIZE);
+    lv_obj_set_flex_align(buttons, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    makeControl(buttons, LV_SYMBOL_PREV, onPrevious, this);
+    playPauseLabel = makeControl(buttons, LV_SYMBOL_PLAY, onPlayPause, this);
+    makeControl(buttons, LV_SYMBOL_NEXT, onNext, this);
+
+    lv_obj_t* volume = makeLayout(column, LV_FLEX_FLOW_ROW);
+    lv_obj_set_size(volume, LV_PCT(100), 20);
+    lv_obj_set_flex_align(volume, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(volume, 12, 0);
+    // O knob do slider passa da altura da trilha; a linha precisa de folga nas laterais para ele não ser cortado.
+    lv_obj_set_style_pad_hor(volume, 4, 0);
+
+    volumeIcon = theme::label(volume, fonts::medium, theme::textSecondary());
+    lv_label_set_text(volumeIcon, LV_SYMBOL_VOLUME_MAX);
+
+    volumeSlider = lv_slider_create(volume);
+    lv_obj_set_height(volumeSlider, 6);
+    lv_obj_set_flex_grow(volumeSlider, 1);
+    lv_slider_set_range(volumeSlider, 0, 100);
+    lv_obj_set_style_bg_color(volumeSlider, theme::text(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(volumeSlider, LV_OPA_20, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(volumeSlider, theme::text(), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(volumeSlider, theme::text(), LV_PART_KNOB);
+    lv_obj_add_event_cb(volumeSlider, onVolume, LV_EVENT_VALUE_CHANGED, this);
+    // Todo objeto do LVGL nasce repassando gestos ao pai: arrastar o volume para o lado viraria troca de página.
+    lv_obj_remove_flag(volumeSlider, LV_OBJ_FLAG_GESTURE_BUBBLE);
+}
+
+void SpotifyPage::buildNotice(lv_obj_t* parent)
+{
+    notice = lv_obj_create(parent);
+    lv_obj_remove_style_all(notice);
+    lv_obj_set_size(notice, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(notice, lv_color_hex(DominantColor::FALLBACK), 0);
+    lv_obj_set_style_bg_opa(notice, LV_OPA_COVER, 0);
+    lv_obj_add_flag(notice, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_remove_flag(notice, LV_OBJ_FLAG_SCROLLABLE);
+
+    qr = lv_qrcode_create(notice);
+    lv_qrcode_set_size(qr, QR_SIZE);
+    lv_qrcode_set_dark_color(qr, theme::background());
+    lv_qrcode_set_light_color(qr, theme::text());
+    lv_obj_set_style_border_width(qr, 6, 0);
+    lv_obj_set_style_border_color(qr, theme::text(), 0);
+    lv_obj_align(qr, LV_ALIGN_LEFT_MID, 40, -10);
+
+    noticeText = theme::label(notice, fonts::large, theme::text());
+    lv_obj_set_width(noticeText, DETAILS_WIDTH);
+    lv_label_set_long_mode(noticeText, LV_LABEL_LONG_WRAP);
+
+    lv_obj_add_flag(notice, LV_OBJ_FLAG_HIDDEN);
+}
+
+void SpotifyPage::onShow()
+{
+    client.watch(true);
+}
+
+void SpotifyPage::onHide()
+{
+    client.watch(false);
+}
+
+void SpotifyPage::onTick(uint32_t nowMillis)
+{
+    PlayerState state;
+    if (client.state().readIfChanged(state, seenState)) {
+        render(state, nowMillis);
+    }
+
+    std::shared_ptr<const CoverArt> art;
+    if (client.cover().readIfChanged(art, seenCover)) {
+        renderCover(std::move(art));
+    }
+
+    if (nowMillis - lastProgressMillis >= PROGRESS_EVERY_MILLIS) {
+        lastProgressMillis = nowMillis;
+        renderProgress(nowMillis);
+    }
+}
+
+void SpotifyPage::render(const PlayerState& state, uint32_t nowMillis)
+{
+    if (state.stale && !shown.stale) {
+        staleSinceMillis = nowMillis;
+    }
+    shown = state;
+    renderNotice(state);
+
+    bool somethingPlays = state.status == PlayerStatus::Playing || state.status == PlayerStatus::Paused;
+    std::string titleText = state.hasItem ? state.track.title : (somethingPlays ? "Tocando algo" : "");
+    lv_label_set_text(title, titleText.c_str());
+    lv_label_set_text(artists, state.hasItem ? state.track.artists.c_str() : "");
+    lv_label_set_text(device, state.device.c_str());
+    lv_label_set_text(total, Progress::clock(state.track.durationMs).c_str());
+    lv_label_set_text(playPauseLabel, state.status == PlayerStatus::Playing ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+
+    bool volumeShown = state.volume.has_value() && state.volumeAllowed;
+    lv_obj_set_flag(volumeSlider, LV_OBJ_FLAG_HIDDEN, !volumeShown);
+    lv_obj_set_flag(volumeIcon, LV_OBJ_FLAG_HIDDEN, !volumeShown);
+    if (volumeShown && !lv_obj_has_state(volumeSlider, LV_STATE_PRESSED)) {
+        lv_slider_set_value(volumeSlider, *state.volume, LV_ANIM_OFF);
+    }
+
+    renderProgress(nowMillis);
+}
+
+void SpotifyPage::renderCover(std::shared_ptr<const CoverArt> art)
+{
+    // Guardar o ponteiro mantém os pixels vivos enquanto o LVGL desenha a partir deles.
+    shownCover = std::move(art);
+    bool hasPixels = shownCover && shownCover->pixels.size() == static_cast<size_t>(COVER_SIZE * COVER_SIZE);
+    lv_obj_set_flag(cover, LV_OBJ_FLAG_HIDDEN, !hasPixels);
+    lv_obj_set_flag(coverPlaceholder, LV_OBJ_FLAG_HIDDEN, hasPixels);
+
+    if (hasPixels) {
+        coverDescriptor.header.magic = LV_IMAGE_HEADER_MAGIC;
+        coverDescriptor.header.cf = LV_COLOR_FORMAT_RGB565;
+        coverDescriptor.header.w = COVER_SIZE;
+        coverDescriptor.header.h = COVER_SIZE;
+        coverDescriptor.header.stride = COVER_SIZE * 2;
+        coverDescriptor.data_size = COVER_SIZE * COVER_SIZE * 2;
+        coverDescriptor.data = reinterpret_cast<const uint8_t*>(shownCover->pixels.data());
+        // O descritor é o mesmo a cada capa; com o cache ligado o LVGL desenharia a anterior.
+        lv_image_cache_drop(&coverDescriptor);
+        lv_image_set_src(cover, &coverDescriptor);
+        lv_obj_invalidate(cover);
+    }
+
+    fadeBackgroundTo(hasPixels ? shownCover->color : DominantColor::FALLBACK);
+}
+
+void SpotifyPage::renderProgress(uint32_t nowMillis)
+{
+    uint32_t position = Progress::estimate(shown, nowMillis);
+    uint32_t duration = shown.track.durationMs;
+    int32_t scaled = duration > 0 ? static_cast<int32_t>(uint64_t(position) * PROGRESS_SCALE / duration) : 0;
+    lv_bar_set_value(progressBar, scaled, LV_ANIM_OFF);
+    lv_label_set_text(elapsed, Progress::clock(position).c_str());
+
+    bool staleLong = shown.stale && nowMillis - staleSinceMillis > STALE_NOTICE_AFTER_MILLIS;
+    lv_obj_set_flag(staleLabel, LV_OBJ_FLAG_HIDDEN, !staleLong);
+}
+
+void SpotifyPage::renderNotice(const PlayerState& state)
+{
+    bool disconnected = state.status == PlayerStatus::Disconnected;
+    bool noDevice = state.status == PlayerStatus::NoDevice;
+    lv_obj_set_flag(notice, LV_OBJ_FLAG_HIDDEN, !disconnected && !noDevice);
+    lv_obj_set_flag(qr, LV_OBJ_FLAG_HIDDEN, !disconnected);
+    lv_obj_move_foreground(notice);
+
+    if (disconnected && state.loginUrl.empty()) {
+        lv_obj_add_flag(qr, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(noticeText, "Esperando o Wi-Fi…");
+        lv_obj_align(noticeText, LV_ALIGN_CENTER, 0, -10);
+        return;
+    }
+
+    if (disconnected) {
+        lv_label_set_text(noticeText, "Escaneie para conectar o Spotify");
+        lv_obj_align(noticeText, LV_ALIGN_RIGHT_MID, -20, -10);
+        if (!state.loginUrl.empty() && state.loginUrl != shownLoginUrl) {
+            shownLoginUrl = state.loginUrl;
+            lv_qrcode_update(qr, shownLoginUrl.c_str(), shownLoginUrl.size());
+        }
+        return;
+    }
+
+    lv_label_set_text(noticeText, LV_SYMBOL_AUDIO "  Abra o Spotify em algum aparelho");
+    lv_obj_align(noticeText, LV_ALIGN_CENTER, 0, -10);
+}
+
+void SpotifyPage::fadeBackgroundTo(uint32_t color)
+{
+    backgroundFrom = currentBackground;
+    backgroundTo = color;
+
+    lv_anim_t fade;
+    lv_anim_init(&fade);
+    lv_anim_set_var(&fade, this);
+    lv_anim_set_values(&fade, 0, 255);
+    lv_anim_set_duration(&fade, FADE_MILLIS);
+    lv_anim_set_exec_cb(&fade, fadeStep);
+    lv_anim_start(&fade);
+}
+
+void SpotifyPage::fadeStep(void* page, int32_t mix)
+{
+    SpotifyPage* self = static_cast<SpotifyPage*>(page);
+    lv_color_t color = lv_color_mix(lv_color_hex(self->backgroundTo), lv_color_hex(self->backgroundFrom),
+        static_cast<uint8_t>(mix));
+
+    lv_obj_set_style_bg_color(self->root, color, 0);
+    self->currentBackground = lv_color_to_u32(color) & 0xFFFFFF;
+}
+
+void SpotifyPage::onPrevious(lv_event_t* event)
+{
+    pageOf(event)->client.send(Command{CommandKind::Previous});
+}
+
+void SpotifyPage::onPlayPause(lv_event_t* event)
+{
+    SpotifyPage* self = pageOf(event);
+    bool playing = self->shown.status == PlayerStatus::Playing;
+    self->client.send(Command{playing ? CommandKind::Pause : CommandKind::Play});
+}
+
+void SpotifyPage::onNext(lv_event_t* event)
+{
+    pageOf(event)->client.send(Command{CommandKind::Next});
+}
+
+void SpotifyPage::onVolume(lv_event_t* event)
+{
+    lv_obj_t* slider = lv_event_get_target_obj(event);
+    uint8_t volume = static_cast<uint8_t>(lv_slider_get_value(slider));
+    pageOf(event)->client.requestVolume(volume);
+}

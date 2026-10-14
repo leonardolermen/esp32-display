@@ -25,6 +25,7 @@ Valem as regras de `~/.claude/CLAUDE.md`. Aqui só o que é específico deste fi
 - `pio test -e native` roda toda a lógica pura no PC.
 - `src/photos/ShuffleOrder.cpp` → `test/photos/test_shuffle_order/test_main.cpp`.
 - JS da página: `node --test "test/web/*.test.mjs"` (o Node no Windows não aceita só a pasta).
+- Relay do Spotify (da raiz): `node --test "relay/test/*.test.mjs"`.
 - O que só se vê na placa entra em `docs/roteiro-de-teste.md`.
 
 ## Comandos (de dentro de `firmware/`)

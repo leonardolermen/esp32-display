@@ -8,8 +8,8 @@ main { display: grid; gap: 16px; padding: 16px 24px 40px; max-width: 720px; marg
 .card { background: var(--surface); border-radius: 12px; padding: 16px 20px; }
 .hint { color: var(--muted); margin: 0 0 12px; font-size: 14px; }
 .hidden { display: none; }
-input[type=password] { display: block; width: 100%; margin-bottom: 8px; padding: 10px 12px; border-radius: 8px;
-  border: 1px solid #4a4845; background: var(--bg); color: var(--text); }
+input[type=password], input[type=text] { display: block; width: 100%; margin-bottom: 8px; padding: 10px 12px;
+  border-radius: 8px; border: 1px solid #4a4845; background: var(--bg); color: var(--text); }
 button, .button { display: inline-block; padding: 10px 16px; border-radius: 8px; border: 0; background: var(--accent);
   color: #2b1209; font-weight: 500; cursor: pointer; }
 .error { color: var(--danger); min-height: 1.5em; margin: 0 0 8px; font-size: 14px; }
@@ -17,3 +17,6 @@ button, .button { display: inline-block; padding: 10px 16px; border-radius: 8px;
 #photo-grid figure { margin: 0; position: relative; }
 #photo-grid img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 8px; display: block; }
 #photo-grid button { position: absolute; top: 6px; right: 6px; padding: 4px 8px; background: rgba(0,0,0,.6); color: #fff; }
+.secondary { background: transparent; color: var(--text); border: 1px solid #4a4845; }
+details { margin-top: 8px; }
+summary { cursor: pointer; color: var(--muted); font-size: 14px; margin-bottom: 8px; }

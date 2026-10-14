@@ -99,3 +99,75 @@ document.getElementById('birthday-replay').addEventListener('click', async () =>
 if (status.adminSet) {
     refreshPhotos();
 }
+
+const spotifyStatus = document.getElementById('spotify-status');
+const spotifyClient = document.getElementById('spotify-client');
+const spotifyConnect = document.getElementById('spotify-connect');
+const spotifyDisconnect = document.getElementById('spotify-disconnect');
+const spotifyMessage = document.getElementById('spotify-message');
+const spotifyPaste = document.getElementById('spotify-paste');
+
+async function refreshSpotify() {
+    const response = await fetch('/api/spotify');
+    if (!response.ok) {
+        return;
+    }
+
+    const spotify = await response.json();
+    spotifyStatus.textContent = spotify.connected
+        ? 'Conectado. A música aparece na tela do Claudinho.'
+        : 'Desconectado. Conecte para ver e controlar a música na tela.';
+    spotifyClient.value = spotify.clientId;
+    spotifyConnect.textContent = spotify.connected ? 'Conectar outra conta' : 'Conectar';
+    spotifyDisconnect.classList.toggle('hidden', !spotify.connected);
+    spotifyMessage.textContent = !spotify.connected && spotify.lastError
+        ? 'O Spotify recusou o login (' + spotify.lastError + '). Confira a redirect URI do app e tente de novo.'
+        : '';
+}
+
+spotifyConnect.addEventListener('click', async () => {
+    spotifyMessage.textContent = '';
+    const response = await fetch('/api/spotify/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: spotifyClient.value.trim() }),
+    });
+    const body = await response.json().catch(() => ({ error: 'não deu certo' }));
+    if (!response.ok) {
+        spotifyMessage.textContent = body.error;
+        return;
+    }
+
+    location.href = body.url;
+});
+
+spotifyDisconnect.addEventListener('click', async () => {
+    if (!confirm('Desconectar o Spotify deste Claudinho?')) {
+        return;
+    }
+    await fetch('/api/spotify', { method: 'DELETE' });
+    refreshSpotify();
+});
+
+document.getElementById('spotify-paste-send').addEventListener('click', async () => {
+    spotifyMessage.textContent = '';
+    const response = await fetch('/api/spotify/paste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: spotifyPaste.value.trim() }),
+    });
+    if (!response.ok) {
+        const body = await response.json().catch(() => ({ error: 'não deu certo' }));
+        spotifyMessage.textContent = body.error;
+        return;
+    }
+
+    spotifyPaste.value = '';
+    spotifyStatus.textContent = 'Link aceito. Em alguns segundos a música aparece na tela.';
+    setTimeout(refreshSpotify, 4000);
+});
+
+document.getElementById('spotify').classList.toggle('hidden', !status.adminSet);
+if (status.adminSet) {
+    refreshSpotify();
+}

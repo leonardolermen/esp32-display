@@ -39,6 +39,7 @@ embutida no firmware, então não precisa.
    de casa.
 3. Conectou: a tela mostra o QR de `http://claudinho.local` e o IP. Abra no celular ou no computador e crie o PIN
    de administrador, como o do celular (4 a 6 números). O aparelho reinicia já no Início.
+4. Para a música: no card **Spotify** de `claudinho.local`, toque em **Conectar** e faça login no celular.
 
 ## Mandar fotos
 
@@ -70,6 +71,8 @@ O que só se vê na placa está em [docs/roteiro-de-teste.md](docs/roteiro-de-te
 | `firmware/src/setup/` | Wi-Fi, portal cativo, PIN de administrador, servidor HTTP e tela de configuração |
 | `firmware/src/photos/` | fotos: envio pelo navegador, armazenamento, carrossel do Início |
 | `firmware/src/crypto/` | cotações: Bitcoin, Ethereum e dólar em reais com sparkline |
+| `firmware/src/spotify/` | Spotify: login PKCE, player, capa e controles |
+| `relay/` | página estática do GitHub Pages que devolve o login do Spotify para a placa |
 | `firmware/src/birthday/` | a mensagem de aniversário |
 | `firmware/src/support/` | o que serve a todos: `Published<T>`, hora local, relógio NTP |
 | `firmware/web/` | a página servida em `claudinho.local` |
