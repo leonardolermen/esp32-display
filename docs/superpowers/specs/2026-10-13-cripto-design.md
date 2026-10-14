@@ -36,7 +36,7 @@ Formato dos números (regra do português do Brasil):
 |---|---|
 | BTC e ETH: preço ≥ R$ 1.000 | sem centavos, ponto de milhar: `R$ 580.000` |
 | Dólar (e qualquer preço < R$ 1.000) | duas casas, vírgula decimal: `R$ 5,43` |
-| Variação | uma casa, vírgula, sinal sempre, espaço antes do `%`: `+2,3 %`, `−0,5 %` (sinal de menos U+2212) |
+| Variação | uma casa, vírgula, sinal sempre, espaço antes do `%`: `+2,3 %`, `-0,5 %` (hífen comum: as fontes geradas cobrem só Latin-1) |
 
 Período da variação e da sparkline: **24 h** para BTC e ETH; **30 dias** para o dólar, que quase não mexe dentro do
 dia. O rótulo do período aparece junto da variação em `fonts::small`: `24 h` ou `30 d`.

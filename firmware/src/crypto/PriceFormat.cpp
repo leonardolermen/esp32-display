@@ -6,7 +6,8 @@
 namespace {
 
 constexpr double CENTS_THRESHOLD = 1000.0;
-constexpr const char* MINUS_SIGN = "−";
+// Hífen comum, não o sinal de menos tipográfico (U+2212): as fontes Inter geradas cobrem só Latin-1.
+constexpr const char* MINUS_SIGN = "-";
 
 std::string groupThousands(long long value)
 {

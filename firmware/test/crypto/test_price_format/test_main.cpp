@@ -33,7 +33,7 @@ void test_rounding_can_cross_the_thousand_line()
 void test_percent_always_carries_a_sign()
 {
     TEST_ASSERT_EQUAL_STRING("+2,3 %", PriceFormat::percent(2.34).c_str());
-    TEST_ASSERT_EQUAL_STRING("−" "0,5 %", PriceFormat::percent(-0.5).c_str());
+    TEST_ASSERT_EQUAL_STRING("-0,5 %", PriceFormat::percent(-0.5).c_str());
     TEST_ASSERT_EQUAL_STRING("+0,0 %", PriceFormat::percent(0).c_str());
 }
 
