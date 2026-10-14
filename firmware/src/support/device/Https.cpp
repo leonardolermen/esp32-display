@@ -6,12 +6,55 @@
 
 #include <algorithm>
 #include <cstring>
+#include <mutex>
 
 namespace {
 
 constexpr uint16_t TIMEOUT_MILLIS = 5000;
 constexpr int NO_CONTENT = 204;
 const char* COLLECTED_HEADERS[] = {"Retry-After"};
+
+constexpr uint32_t BODY_DEADLINE_MILLIS = 10000;
+constexpr size_t READ_CHUNK_BYTES = 512;
+
+// Lê o corpo direto do socket, com prazo e cedendo o processador quando não há dados. O leitor do HTTPClient espera
+// girando sem ceder e, no modo chunked, ficava preso para sempre numa resposta do CoinGecko até o watchdog
+// reiniciar a placa.
+size_t readBody(HTTPClient& http, PsramBuffer& body, int declaredBytes)
+{
+    NetworkClient* stream = http.getStreamPtr();
+    uint8_t chunk[READ_CHUNK_BYTES];
+    size_t received = 0;
+    uint32_t deadline = millis() + BODY_DEADLINE_MILLIS;
+
+    while (static_cast<int32_t>(millis() - deadline) < 0) {
+        bool complete = declaredBytes >= 0 && received >= static_cast<size_t>(declaredBytes);
+        if (complete || stream == nullptr) {
+            break;
+        }
+
+        int waiting = stream->available();
+        if (waiting > 0) {
+            int got = stream->read(chunk, std::min(sizeof(chunk), static_cast<size_t>(waiting)));
+            if (got > 0) {
+                body.write(chunk, static_cast<size_t>(got));
+                received += static_cast<size_t>(got);
+                continue;
+            }
+        }
+        if (!stream->connected()) {
+            break;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+
+    return received;
+}
+
+// Uma conexão TLS por vez. Neste core o mbedTLS só usa RAM interna (~40 KB por conexão), a mesma que o driver da
+// tela usa para o DMA de cada quadro; com Spotify, capa e cotações abrindo conexões juntas, a RAM acabava e o driver
+// da tela abortava, reiniciando a placa. Em fila, uma requisição espera alguns segundos no pior caso.
+std::mutex oneConnectionAtATime;
 
 }
 
@@ -73,6 +116,7 @@ namespace Https {
 
 HttpsResponse send(const HttpsRequest& request)
 {
+    std::lock_guard<std::mutex> lock(oneConnectionAtATime);
     HttpsResponse response;
 
     NetworkClientSecure client;
@@ -81,9 +125,8 @@ HttpsResponse send(const HttpsRequest& request)
     client.setTimeout(TIMEOUT_MILLIS);
 
     HTTPClient http;
-    // Sem keep-alive o servidor fecha depois da resposta: um 204 sem Content-Length não deixa a leitura esperando o
-    // socket fechar.
-    http.setReuse(false);
+    // HTTP/1.0 não tem chunked: o corpo vem inteiro e o servidor fecha a conexão no fim, o que o readBody entende.
+    http.useHTTP10(true);
     http.setTimeout(TIMEOUT_MILLIS);
     http.setConnectTimeout(TIMEOUT_MILLIS);
     if (!http.begin(client, request.url.c_str())) {
@@ -106,6 +149,8 @@ HttpsResponse send(const HttpsRequest& request)
     response.status = http.sendRequest(request.method, payload, request.payload.size());
     response.retryAfter = http.header("Retry-After").c_str();
 
+    // 204 não tem corpo: ler esperaria o servidor fechar a conexão. Não usar setReuse(false) para isso — pedindo
+    // "Connection: close", o CoinGecko responde sem tamanho e a leitura gira até o fechamento, travando a tarefa.
     bool hasBody = response.status >= 200 && response.status != NO_CONTENT;
     if (hasBody) {
         // Com Content-Length conhecido, reserva só o tamanho da resposta; chunked (-1) usa o teto.
@@ -113,7 +158,7 @@ HttpsResponse send(const HttpsRequest& request)
         size_t capacity = declared > 0 ? std::min(static_cast<size_t>(declared), request.maxBodyBytes)
                                        : request.maxBodyBytes;
         std::unique_ptr<PsramBuffer> body = PsramBuffer::allocate(capacity);
-        if (body && http.writeToStream(body.get()) > 0) {
+        if (body && readBody(http, *body, declared) > 0) {
             response.body = std::move(body);
         }
     }
