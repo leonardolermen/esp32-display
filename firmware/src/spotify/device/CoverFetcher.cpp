@@ -12,8 +12,8 @@ namespace {
 
 constexpr size_t MAX_COVER_BYTES = 256 * 1024;
 constexpr int HTTP_OK = 200;
-// Capas de 640 px decodificam pela metade direto no JPEGDEC: menos memória e o resultado reduz igual.
-constexpr int HALVE_FROM_WIDTH = 600;
+// Na ordem do deslocamento: capas grandes decodificam já reduzidas no JPEGDEC, com menos PSRAM e o mesmo resultado.
+constexpr int SCALE_FLAGS[] = {0, JPEG_SCALE_HALF, JPEG_SCALE_QUARTER, JPEG_SCALE_EIGHTH};
 
 struct Target {
     uint16_t* pixels;
@@ -45,8 +45,8 @@ std::optional<CoverArt> CoverFetcher::fetch(const std::string& url)
         return std::nullopt;
     }
 
-    int scale = decoder->getWidth() >= HALVE_FROM_WIDTH ? JPEG_SCALE_HALF : 0;
-    int shift = scale == 0 ? 0 : 1;
+    int shift = CoverScaler::jpegScaleShift(decoder->getWidth());
+    int scale = SCALE_FLAGS[shift];
     int width = decoder->getWidth() >> shift;
     int height = decoder->getHeight() >> shift;
     std::vector<uint16_t> decoded(static_cast<size_t>(width) * height);

@@ -65,8 +65,10 @@ Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` 
 ## Spotify
 
 Antes, uma vez: redirect URI `https://leonardolermen.github.io/esp32-display/callback/` no app do Spotify; Pages com
-fonte "GitHub Actions" (o workflow `relay` publica). Sem o Pages ainda, o plano B funciona: o login para numa página
-404 do github.io, e o endereço dela colado no card resolve.
+fonte "GitHub Actions" (o workflow `relay` publica sozinho a cada push na `main`). Para publicar antes do merge: em
+Settings → Environments → `github-pages`, libere a branch em "Deployment branches"; depois Actions → `relay` → Run
+workflow, escolhendo a branch. Sem o Pages, o plano B funciona: o login para numa página 404 do github.io, e o endereço
+dela colado no card resolve.
 
 - [ ] Card Spotify em claudinho.local → Conectar → login no celular → volta para a placa → "Spotify conectando".
 - [ ] Página do Spotify desconectada mostra QR; escanear com o celular também conecta.

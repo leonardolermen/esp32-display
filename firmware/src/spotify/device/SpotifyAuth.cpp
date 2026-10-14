@@ -87,6 +87,7 @@ bool SpotifyAuth::exchangeWaitingCode(uint32_t nowMillis)
         code.swap(waitingCode);
         verifier.swap(waitingVerifier);
     }
+    uint32_t generationAtRequest = currentGeneration();
 
     std::optional<TokenResult> result = requestToken(AuthFlow::tokenRequestBody(vault.clientId(), code, verifier));
     if (!result || !result->ok || !result->refreshToken) {
@@ -96,7 +97,7 @@ bool SpotifyAuth::exchangeWaitingCode(uint32_t nowMillis)
         return false;
     }
 
-    remember(*result, nowMillis);
+    remember(*result, nowMillis, generationAtRequest);
     std::lock_guard<std::mutex> lock(mutex);
     lastFailure.clear();
     return true;
@@ -111,6 +112,7 @@ std::optional<std::string> SpotifyAuth::accessToken(uint32_t nowMillis)
         }
     }
 
+    uint32_t generationAtRequest = currentGeneration();
     std::string refresh = vault.refreshToken();
     if (refresh.empty()) {
         return std::nullopt;
@@ -126,7 +128,7 @@ std::optional<std::string> SpotifyAuth::accessToken(uint32_t nowMillis)
         return std::nullopt;
     }
 
-    remember(*result, nowMillis);
+    remember(*result, nowMillis, generationAtRequest);
     return result->accessToken;
 }
 
@@ -138,10 +140,16 @@ void SpotifyAuth::invalidateAccessToken()
 
 void SpotifyAuth::disconnect()
 {
-    vault.forgetRefreshToken();
-
     std::lock_guard<std::mutex> lock(mutex);
+    generation++;
     access.clear();
+    vault.forgetRefreshToken();
+}
+
+uint32_t SpotifyAuth::currentGeneration() const
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    return generation;
 }
 
 std::optional<TokenResult> SpotifyAuth::requestToken(const std::string& body)
@@ -159,16 +167,19 @@ std::optional<TokenResult> SpotifyAuth::requestToken(const std::string& body)
     return TokenResponse::parse(response.body->view());
 }
 
-void SpotifyAuth::remember(const TokenResult& result, uint32_t nowMillis)
+void SpotifyAuth::remember(const TokenResult& result, uint32_t nowMillis, uint32_t generationAtRequest)
 {
+    uint32_t usableSeconds = result.expiresInSeconds - std::min(result.expiresInSeconds, EARLY_REFRESH_SECONDS);
+
+    std::lock_guard<std::mutex> lock(mutex);
+    // Desconectaram enquanto a resposta vinha: ela não pode ressuscitar o login.
+    if (generation != generationAtRequest) {
+        return;
+    }
     // Sem refresh token novo na resposta, o antigo continua valendo.
     if (result.refreshToken) {
         vault.saveRefreshToken(*result.refreshToken);
     }
-
-    uint32_t usableSeconds = result.expiresInSeconds - std::min(result.expiresInSeconds, EARLY_REFRESH_SECONDS);
-
-    std::lock_guard<std::mutex> lock(mutex);
     access = result.accessToken;
     accessExpiresMillis = nowMillis + usableSeconds * 1000;
 }

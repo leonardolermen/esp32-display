@@ -54,7 +54,7 @@ const Published<PlayerState>& SpotifyClient::state() const
     return published;
 }
 
-const Published<CoverArt>& SpotifyClient::cover() const
+const Published<std::shared_ptr<const CoverArt>>& SpotifyClient::cover() const
 {
     return publishedCover;
 }
@@ -121,7 +121,7 @@ void SpotifyClient::showLogin(uint32_t)
     if (current.status != PlayerStatus::Disconnected) {
         current = PlayerState{};
         coverAlbumId.clear();
-        publishedCover.publish(CoverArt{});
+        publishedCover.publish(std::make_shared<const CoverArt>());
     }
 
     std::string url = AuthFlow::shortLoginUrl(WiFi.localIP().toString().c_str());
@@ -156,6 +156,9 @@ void SpotifyClient::poll(uint32_t nowMillis)
     uint32_t answeredAt = millis();
 
     uint32_t wait = 0;
+    if (response.status != UNAUTHORIZED) {
+        consecutiveUnauthorized = 0;
+    }
     switch (response.status) {
     case HTTP_OK:
         wait = applyPlayer(response, answeredAt);
@@ -165,7 +168,8 @@ void SpotifyClient::poll(uint32_t nowMillis)
         break;
     case UNAUTHORIZED:
         auth.invalidateAccessToken();
-        wait = IDLE_WAIT_MILLIS;
+        consecutiveUnauthorized++;
+        wait = PollSchedule::unauthorizedBackoffMillis(consecutiveUnauthorized);
         break;
     case TOO_MANY_REQUESTS:
         wait = PollSchedule::retryAfterMillis(response.retryAfter);
@@ -237,7 +241,7 @@ void SpotifyClient::refreshCover()
 
     CoverArt shown = art ? std::move(*art) : CoverArt{};
     shown.albumId = coverAlbumId;
-    publishedCover.publish(shown);
+    publishedCover.publish(std::make_shared<const CoverArt>(std::move(shown)));
 }
 
 void SpotifyClient::handle(const Command& command, uint32_t nowMillis)

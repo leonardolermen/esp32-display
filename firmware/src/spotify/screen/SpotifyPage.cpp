@@ -1,6 +1,7 @@
 #include "spotify/screen/SpotifyPage.h"
 
-// O lvgl.h do 9.4 não expõe o cache de imagens; precisamos dele para trocar a capa no mesmo descritor.
+// O lvgl.h do 9.4 não expõe o cache de imagens. Hoje ele está desligado (LV_CACHE_DEF_SIZE 0) e a limpeza não faz
+// nada; fica para que ligar o cache não faça a página mostrar a capa anterior.
 #include <src/misc/cache/instance/lv_image_cache.h>
 
 #include "spotify/Progress.h"
@@ -67,6 +68,9 @@ void SpotifyPage::build(lv_obj_t* parent)
     lv_label_set_text(staleLabel, "sem conexão");
     lv_obj_align(staleLabel, LV_ALIGN_TOP_RIGHT, -12, 10);
     lv_obj_add_flag(staleLabel, LV_OBJ_FLAG_HIDDEN);
+
+    // Antes da primeira publicação (Wi-Fi ainda subindo) a página já mostra o aviso, não controles vazios.
+    render(PlayerState{}, 0);
 }
 
 void SpotifyPage::buildCover(lv_obj_t* parent)
@@ -187,7 +191,7 @@ void SpotifyPage::onTick(uint32_t nowMillis)
         render(state, nowMillis);
     }
 
-    CoverArt art;
+    std::shared_ptr<const CoverArt> art;
     if (client.cover().readIfChanged(art, seenCover)) {
         renderCover(std::move(art));
     }
@@ -224,10 +228,11 @@ void SpotifyPage::render(const PlayerState& state, uint32_t nowMillis)
     renderProgress(nowMillis);
 }
 
-void SpotifyPage::renderCover(CoverArt art)
+void SpotifyPage::renderCover(std::shared_ptr<const CoverArt> art)
 {
+    // Guardar o ponteiro mantém os pixels vivos enquanto o LVGL desenha a partir deles.
     shownCover = std::move(art);
-    bool hasPixels = shownCover.pixels.size() == static_cast<size_t>(COVER_SIZE * COVER_SIZE);
+    bool hasPixels = shownCover && shownCover->pixels.size() == static_cast<size_t>(COVER_SIZE * COVER_SIZE);
     lv_obj_set_flag(cover, LV_OBJ_FLAG_HIDDEN, !hasPixels);
     lv_obj_set_flag(coverPlaceholder, LV_OBJ_FLAG_HIDDEN, hasPixels);
 
@@ -238,14 +243,14 @@ void SpotifyPage::renderCover(CoverArt art)
         coverDescriptor.header.h = COVER_SIZE;
         coverDescriptor.header.stride = COVER_SIZE * 2;
         coverDescriptor.data_size = COVER_SIZE * COVER_SIZE * 2;
-        coverDescriptor.data = reinterpret_cast<const uint8_t*>(shownCover.pixels.data());
-        // O descritor é o mesmo a cada capa; sem tirar do cache o LVGL desenharia a capa anterior.
+        coverDescriptor.data = reinterpret_cast<const uint8_t*>(shownCover->pixels.data());
+        // O descritor é o mesmo a cada capa; com o cache ligado o LVGL desenharia a anterior.
         lv_image_cache_drop(&coverDescriptor);
         lv_image_set_src(cover, &coverDescriptor);
         lv_obj_invalidate(cover);
     }
 
-    fadeBackgroundTo(hasPixels ? shownCover.color : DominantColor::FALLBACK);
+    fadeBackgroundTo(hasPixels ? shownCover->color : DominantColor::FALLBACK);
 }
 
 void SpotifyPage::renderProgress(uint32_t nowMillis)
@@ -267,6 +272,13 @@ void SpotifyPage::renderNotice(const PlayerState& state)
     lv_obj_set_flag(notice, LV_OBJ_FLAG_HIDDEN, !disconnected && !noDevice);
     lv_obj_set_flag(qr, LV_OBJ_FLAG_HIDDEN, !disconnected);
     lv_obj_move_foreground(notice);
+
+    if (disconnected && state.loginUrl.empty()) {
+        lv_obj_add_flag(qr, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(noticeText, "Esperando o Wi-Fi…");
+        lv_obj_align(noticeText, LV_ALIGN_CENTER, 0, -10);
+        return;
+    }
 
     if (disconnected) {
         lv_label_set_text(noticeText, "Escaneie para conectar o Spotify");

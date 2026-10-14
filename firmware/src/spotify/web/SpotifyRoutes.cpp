@@ -26,8 +26,8 @@ struct Outcome {
 constexpr Outcome OUTCOMES[] = {
     {200, "Spotify conectando", "Pode fechar esta aba. Em alguns segundos a música aparece na tela do Claudinho."},
     {410, "Link vencido", "O login demorou mais de 10 minutos. Toque em Conectar de novo em claudinho.local."},
-    {400, "Link de outro login",
-        "Este link não foi gerado por este Claudinho. Toque em Conectar de novo em claudinho.local."},
+    {400, "Link já usado",
+        "Este link já foi usado ou não veio deste Claudinho. Toque em Conectar de novo em claudinho.local."},
 };
 
 void sendPage(AsyncWebServerRequest* request, int status, const char* title, const char* text)
@@ -62,6 +62,14 @@ bool looksLikeClientId(const std::string& clientId)
            });
 }
 
+// O onBody só roda quando há corpo; sem ele a requisição ficaria pendurada até o timeout.
+void rejectEmptyBody(AsyncWebServerRequest* request)
+{
+    if (request->contentLength() == 0) {
+        sendError(request, 400, nullptr, "corpo vazio");
+    }
+}
+
 const Outcome& outcomeOf(AuthFlow::CallbackCheck check)
 {
     return OUTCOMES[static_cast<size_t>(check)];
@@ -84,11 +92,11 @@ void SpotifyRoutes::begin()
     // O ESPAsyncWebServer casa "/api/spotify" também com "/api/spotify/…": o callback tem que vir antes do status.
     server.on("/spotify/go", HTTP_GET, [this](AsyncWebServerRequest* request) { go(request); });
     server.on("/api/spotify/callback", HTTP_GET, [this](AsyncWebServerRequest* request) { callback(request); });
-    server.on("/api/spotify/connect", HTTP_POST, [](AsyncWebServerRequest*) {}, nullptr,
+    server.on("/api/spotify/connect", HTTP_POST, rejectEmptyBody, nullptr,
         [this](AsyncWebServerRequest* request, uint8_t* data, size_t length, size_t, size_t) {
             connect(request, data, length);
         });
-    server.on("/api/spotify/paste", HTTP_POST, [](AsyncWebServerRequest*) {}, nullptr,
+    server.on("/api/spotify/paste", HTTP_POST, rejectEmptyBody, nullptr,
         [this](AsyncWebServerRequest* request, uint8_t* data, size_t length, size_t, size_t) {
             paste(request, data, length);
         });

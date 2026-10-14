@@ -5,6 +5,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -24,7 +25,8 @@ public:
 
     void begin();
     const Published<PlayerState>& state() const;
-    const Published<CoverArt>& cover() const;
+    // Ponteiro compartilhado: a capa tem 80 KB e publicar ou ler copia só o ponteiro.
+    const Published<std::shared_ptr<const CoverArt>>& cover() const;
     void send(Command command);
     void requestVolume(uint8_t volume);
     void watch(bool watching);
@@ -53,11 +55,12 @@ private:
     // Só o último valor do slider importa: a fila perderia o final de um arrasto rápido.
     std::atomic<int> requestedVolume{-1};
     Published<PlayerState> published;
-    Published<CoverArt> publishedCover;
+    Published<std::shared_ptr<const CoverArt>> publishedCover;
     PlayerState current;
     std::string coverAlbumId;
     uint32_t nextPollMillis = 0;
     uint32_t pausedSinceMillis = 0;
     std::optional<uint8_t> pendingVolume;
     uint32_t volumeDueMillis = 0;
+    uint32_t consecutiveUnauthorized = 0;
 };

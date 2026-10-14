@@ -44,6 +44,14 @@ void test_retry_after_is_in_seconds_with_a_safe_default()
     TEST_ASSERT_EQUAL_UINT32(30000, PollSchedule::retryAfterMillis("abc"));
 }
 
+void test_repeated_unauthorized_backs_off_up_to_a_minute()
+{
+    TEST_ASSERT_EQUAL_UINT32(1000, PollSchedule::unauthorizedBackoffMillis(1));
+    TEST_ASSERT_EQUAL_UINT32(2000, PollSchedule::unauthorizedBackoffMillis(2));
+    TEST_ASSERT_EQUAL_UINT32(8000, PollSchedule::unauthorizedBackoffMillis(4));
+    TEST_ASSERT_EQUAL_UINT32(60000, PollSchedule::unauthorizedBackoffMillis(30));
+}
+
 int main()
 {
     UNITY_BEGIN();
@@ -53,5 +61,6 @@ int main()
     RUN_TEST(test_no_device_is_idle_even_when_watched);
     RUN_TEST(test_recent_pause_keeps_the_pace_and_long_pause_goes_idle);
     RUN_TEST(test_retry_after_is_in_seconds_with_a_safe_default);
+    RUN_TEST(test_repeated_unauthorized_backs_off_up_to_a_minute);
     return UNITY_END();
 }

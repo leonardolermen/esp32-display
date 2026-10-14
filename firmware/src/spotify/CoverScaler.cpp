@@ -2,6 +2,13 @@
 
 #include <algorithm>
 
+namespace {
+
+constexpr int MIN_DECODED_WIDTH = 300;
+constexpr int MAX_SHIFT = 3;
+
+}
+
 namespace CoverScaler {
 
 void downscale(const uint16_t* source, int sourceWidth, int sourceHeight, uint16_t* target, int size)
@@ -32,6 +39,15 @@ void downscale(const uint16_t* source, int sourceWidth, int sourceHeight, uint16
             target[y * size + x] = static_cast<uint16_t>(averaged);
         }
     }
+}
+
+int jpegScaleShift(int width)
+{
+    int shift = 0;
+    while (shift < MAX_SHIFT && (width >> (shift + 1)) >= MIN_DECODED_WIDTH) {
+        shift++;
+    }
+    return shift;
 }
 
 }

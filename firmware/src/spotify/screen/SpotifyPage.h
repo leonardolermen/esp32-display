@@ -2,6 +2,7 @@
 
 #include <lvgl.h>
 
+#include <memory>
 #include <string>
 
 #include "navigation/Page.h"
@@ -24,7 +25,7 @@ private:
     void buildControls(lv_obj_t* parent);
     void buildNotice(lv_obj_t* parent);
     void render(const PlayerState& state, uint32_t nowMillis);
-    void renderCover(CoverArt art);
+    void renderCover(std::shared_ptr<const CoverArt> art);
     void renderProgress(uint32_t nowMillis);
     void renderNotice(const PlayerState& state);
     void fadeBackgroundTo(uint32_t color);
@@ -39,7 +40,7 @@ private:
     uint32_t seenState = 0;
     uint32_t seenCover = 0;
     PlayerState shown;
-    CoverArt shownCover;
+    std::shared_ptr<const CoverArt> shownCover;
     lv_image_dsc_t coverDescriptor = {};
     uint32_t backgroundFrom = DominantColor::FALLBACK;
     uint32_t backgroundTo = DominantColor::FALLBACK;

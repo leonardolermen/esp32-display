@@ -17,5 +17,6 @@ constexpr uint32_t DEFAULT_RETRY_MILLIS = 30000;
 
 std::optional<uint32_t> intervalMillis(PlayerStatus status, bool watched, uint32_t pausedForMillis);
 uint32_t retryAfterMillis(const std::string& header);
+uint32_t unauthorizedBackoffMillis(uint32_t consecutive);
 
 }

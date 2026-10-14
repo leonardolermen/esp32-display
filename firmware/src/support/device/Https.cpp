@@ -108,7 +108,11 @@ HttpsResponse send(const HttpsRequest& request)
 
     bool hasBody = response.status >= 200 && response.status != NO_CONTENT;
     if (hasBody) {
-        std::unique_ptr<PsramBuffer> body = PsramBuffer::allocate(request.maxBodyBytes);
+        // Com Content-Length conhecido, reserva só o tamanho da resposta; chunked (-1) usa o teto.
+        int declared = http.getSize();
+        size_t capacity = declared > 0 ? std::min(static_cast<size_t>(declared), request.maxBodyBytes)
+                                       : request.maxBodyBytes;
+        std::unique_ptr<PsramBuffer> body = PsramBuffer::allocate(capacity);
         if (body && http.writeToStream(body.get()) > 0) {
             response.body = std::move(body);
         }

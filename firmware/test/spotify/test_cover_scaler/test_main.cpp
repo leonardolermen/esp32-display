@@ -57,6 +57,14 @@ void test_small_64_cover_is_enlarged()
     assertEverywhere(scaled(std::vector<uint16_t>(64 * 64, 0x07E0), 64, 64), 0x07E0);
 }
 
+void test_jpeg_scale_keeps_the_decoded_cover_small()
+{
+    TEST_ASSERT_EQUAL_INT(0, CoverScaler::jpegScaleShift(300));
+    TEST_ASSERT_EQUAL_INT(1, CoverScaler::jpegScaleShift(640));
+    TEST_ASSERT_EQUAL_INT(2, CoverScaler::jpegScaleShift(1300));
+    TEST_ASSERT_EQUAL_INT(3, CoverScaler::jpegScaleShift(3000));
+}
+
 int main()
 {
     UNITY_BEGIN();
@@ -64,5 +72,6 @@ int main()
     RUN_TEST(test_alternating_columns_average_to_gray);
     RUN_TEST(test_large_640_cover_fits);
     RUN_TEST(test_small_64_cover_is_enlarged);
+    RUN_TEST(test_jpeg_scale_keeps_the_decoded_cover_small);
     return UNITY_END();
 }

@@ -24,7 +24,8 @@ public:
 
 private:
     std::optional<TokenResult> requestToken(const std::string& body);
-    void remember(const TokenResult& result, uint32_t nowMillis);
+    void remember(const TokenResult& result, uint32_t nowMillis, uint32_t generationAtRequest);
+    uint32_t currentGeneration() const;
 
     SpotifyVault& vault;
     mutable std::mutex mutex;
@@ -35,4 +36,6 @@ private:
     std::string waitingVerifier;
     std::string access;
     uint32_t accessExpiresMillis = 0;
+    // Muda a cada Desconectar: uma resposta de token que chega depois não reconecta a placa sozinha.
+    uint32_t generation = 0;
 };
