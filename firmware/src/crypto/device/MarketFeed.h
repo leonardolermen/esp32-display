@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Stream.h>
+
 #include <cstdint>
 #include <memory>
 #include <string_view>
@@ -14,16 +16,20 @@ public:
     const Published<MarketState>& state() const;
 
 private:
-    // Corpo de resposta na PSRAM: o CoinGecko manda ~20 KB, grande demais para a heap interna (regra do projeto).
-    class Body {
+    // Corpo de resposta na PSRAM: o CoinGecko manda vários KB, grande demais para a heap interna (regra do projeto).
+    // É um Stream para o HTTPClient escrever nele já sem a codificação chunked.
+    class Body : public Stream {
     public:
         static std::unique_ptr<Body> allocate(size_t capacity);
-        ~Body();
+        ~Body() override;
 
-        char* data();
-        size_t capacity() const;
-        void setSize(size_t size);
         std::string_view view() const;
+
+        size_t write(uint8_t byte) override;
+        size_t write(const uint8_t* buffer, size_t size) override;
+        int available() override;
+        int read() override;
+        int peek() override;
 
     private:
         Body(char* data, size_t capacity);

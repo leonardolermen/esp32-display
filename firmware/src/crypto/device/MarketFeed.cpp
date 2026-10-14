@@ -7,6 +7,7 @@
 #include <esp_heap_caps.h>
 
 #include <algorithm>
+#include <cstring>
 
 #include "crypto/MarketParser.h"
 
@@ -18,7 +19,6 @@ constexpr uint32_t LOOP_SLEEP_MILLIS = 1000;
 constexpr uint16_t TIMEOUT_MILLIS = 5000;
 constexpr int TOO_MANY_REQUESTS = 429;
 constexpr size_t MAX_BODY_BYTES = 64 * 1024;
-constexpr size_t READ_CHUNK_BYTES = 1024;
 // mbedTLS precisa de pilha folgada para o handshake; 12 KB é o que o core recomenda para HTTPS numa tarefa.
 constexpr uint32_t TASK_STACK_BYTES = 12288;
 
@@ -50,24 +50,37 @@ MarketFeed::Body::~Body()
     heap_caps_free(bytes);
 }
 
-char* MarketFeed::Body::data()
-{
-    return bytes;
-}
-
-size_t MarketFeed::Body::capacity() const
-{
-    return room;
-}
-
-void MarketFeed::Body::setSize(size_t size)
-{
-    used = size;
-}
-
 std::string_view MarketFeed::Body::view() const
 {
     return std::string_view(bytes, used);
+}
+
+size_t MarketFeed::Body::write(uint8_t byte)
+{
+    return write(&byte, 1);
+}
+
+size_t MarketFeed::Body::write(const uint8_t* buffer, size_t size)
+{
+    size_t accepted = std::min(size, room - used);
+    memcpy(bytes + used, buffer, accepted);
+    used += accepted;
+    return accepted;
+}
+
+int MarketFeed::Body::available()
+{
+    return 0;
+}
+
+int MarketFeed::Body::read()
+{
+    return -1;
+}
+
+int MarketFeed::Body::peek()
+{
+    return -1;
 }
 
 // Tarefa própria: três chamadas HTTPS podem levar dezenas de segundos com rede ruim, e a tarefa de rede precisa
@@ -157,24 +170,10 @@ std::unique_ptr<MarketFeed::Body> MarketFeed::fetch(const char* url)
         return nullptr;
     }
 
-    // Lido em pedaços direto para a PSRAM: getString() copiaria o corpo inteiro para a heap interna.
+    // writeToStream decodifica o chunked do CoinGecko e grava direto na PSRAM; getString() copiaria tudo para a
+    // heap interna e o stream cru traria os tamanhos dos chunks no meio do JSON.
     std::unique_ptr<Body> body = Body::allocate(MAX_BODY_BYTES);
-    size_t received = 0;
-    if (body) {
-        NetworkClient* stream = http.getStreamPtr();
-        uint32_t deadline = millis() + TIMEOUT_MILLIS;
-        while (http.connected() && received < body->capacity() && millis() < deadline) {
-            int got = stream->read(reinterpret_cast<uint8_t*>(body->data() + received),
-                std::min(READ_CHUNK_BYTES, body->capacity() - received));
-            if (got > 0) {
-                received += static_cast<size_t>(got);
-                deadline = millis() + TIMEOUT_MILLIS;
-            } else {
-                vTaskDelay(pdMS_TO_TICKS(10));
-            }
-        }
-        body->setSize(received);
-    }
+    int received = body ? http.writeToStream(body.get()) : 0;
     http.end();
 
     return received > 0 ? std::move(body) : nullptr;
