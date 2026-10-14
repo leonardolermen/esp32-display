@@ -13,6 +13,7 @@
 #include "board/device/Display.h"
 #include "board/device/Touch.h"
 #include "crypto/device/MarketFeed.h"
+#include "crypto/screen/CryptoPage.h"
 #include "navigation/screen/Navigator.h"
 #include "photos/screen/HomePage.h"
 #include "photos/storage/PhotoStore.h"
@@ -172,6 +173,7 @@ void setup()
     configured = adminSecret.isSet() && wifi.hasSavedNetwork();
     if (configured) {
         navigator.add(std::make_unique<HomePage>(photoStore));
+        navigator.add(std::make_unique<CryptoPage>(marketFeed.state()));
     } else {
         navigator.add(std::make_unique<SetupPage>(setupState));
     }

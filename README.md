@@ -69,6 +69,7 @@ O que só se vê na placa está em [docs/roteiro-de-teste.md](docs/roteiro-de-te
 | `firmware/src/theme/` | cores e fontes Inter |
 | `firmware/src/setup/` | Wi-Fi, portal cativo, PIN de administrador, servidor HTTP e tela de configuração |
 | `firmware/src/photos/` | fotos: envio pelo navegador, armazenamento, carrossel do Início |
+| `firmware/src/crypto/` | cotações: Bitcoin, Ethereum e dólar em reais com sparkline |
 | `firmware/src/birthday/` | a mensagem de aniversário |
 | `firmware/src/support/` | o que serve a todos: `Published<T>`, hora local, relógio NTP |
 | `firmware/web/` | a página servida em `claudinho.local` |
@@ -87,6 +88,6 @@ resto é C++17 puro e roda no PC.
 
 ## Ideias para você
 
-Clima, GitHub (contribuições, PRs, CI), cotações, recados e fotos por Telegram, placar de futebol, pomodoro,
+Clima, GitHub (contribuições, PRs, CI), recados e fotos por Telegram, placar de futebol, pomodoro,
 microSD, som, simulador no PC, e uma API de "página genérica" para alimentar a tela de qualquer linguagem (Go
 incluso). O [guia de páginas](docs/como-criar-uma-pagina.md) mostra por onde começar.
