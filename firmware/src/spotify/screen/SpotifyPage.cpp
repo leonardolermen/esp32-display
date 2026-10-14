@@ -11,24 +11,45 @@
 namespace {
 
 constexpr int32_t COVER_X = 20;
-constexpr int32_t COVER_Y = 40;
+// Capa e coluna de texto ocupam a mesma faixa vertical, centrada acima dos pontinhos da navegação.
+constexpr int32_t COVER_Y = 50;
 constexpr int32_t COVER_RADIUS = 12;
 constexpr int32_t DETAILS_X = 240;
 constexpr int32_t DETAILS_WIDTH = 220;
-constexpr int32_t CONTROL_SIZE = 56;
-constexpr int32_t CONTROLS_Y = 182;
+constexpr int32_t CONTROL_SIZE = 52;
+constexpr int32_t ROW_GAP = 4;
 constexpr int32_t QR_SIZE = 140;
 constexpr int32_t PROGRESS_SCALE = 1000;
 constexpr uint32_t PROGRESS_EVERY_MILLIS = 250;
 constexpr uint32_t FADE_MILLIS = 400;
 constexpr uint32_t STALE_NOTICE_AFTER_MILLIS = 60000;
 
-lv_obj_t* makeControl(lv_obj_t* parent, const char* symbol, int32_t x, lv_event_cb_t callback, void* page)
+// Contêiner sem estilo do tema, que só organiza os filhos e deixa o deslize passar para o Navigator.
+lv_obj_t* makeLayout(lv_obj_t* parent, lv_flex_flow_t flow)
+{
+    lv_obj_t* layout = lv_obj_create(parent);
+    lv_obj_remove_style_all(layout);
+    lv_obj_set_flex_flow(layout, flow);
+    lv_obj_remove_flag(layout, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(layout, LV_OBJ_FLAG_CLICKABLE);
+    return layout;
+}
+
+lv_obj_t* makeLine(lv_obj_t* parent, const lv_font_t* font, lv_color_t color, int32_t lines)
+{
+    lv_obj_t* label = theme::label(parent, font, color);
+    lv_obj_set_width(label, LV_PCT(100));
+    lv_obj_set_height(label, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_height(label, lines * lv_font_get_line_height(font), 0);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+    return label;
+}
+
+lv_obj_t* makeControl(lv_obj_t* parent, const char* symbol, lv_event_cb_t callback, void* page)
 {
     lv_obj_t* button = lv_button_create(parent);
     lv_obj_remove_style_all(button);
     lv_obj_set_size(button, CONTROL_SIZE, CONTROL_SIZE);
-    lv_obj_set_pos(button, x, CONTROLS_Y);
     lv_obj_set_style_radius(button, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(button, theme::text(), 0);
     lv_obj_set_style_bg_opa(button, LV_OPA_20, LV_STATE_PRESSED);
@@ -61,7 +82,6 @@ void SpotifyPage::build(lv_obj_t* parent)
 
     buildCover(parent);
     buildDetails(parent);
-    buildControls(parent);
     buildNotice(parent);
 
     staleLabel = theme::label(parent, fonts::small, theme::textSecondary());
@@ -96,51 +116,61 @@ void SpotifyPage::buildCover(lv_obj_t* parent)
     lv_obj_add_flag(cover, LV_OBJ_FLAG_HIDDEN);
 }
 
+// Uma coluna da altura da capa: o título encosta no topo dela e o volume na base; o espaço que sobra fica entre o
+// texto e o progresso.
 void SpotifyPage::buildDetails(lv_obj_t* parent)
 {
-    title = theme::label(parent, fonts::large, theme::text());
-    lv_obj_set_size(title, DETAILS_WIDTH, 48);
-    lv_label_set_long_mode(title, LV_LABEL_LONG_DOT);
-    lv_obj_set_pos(title, DETAILS_X, COVER_Y);
+    lv_obj_t* column = makeLayout(parent, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_pos(column, DETAILS_X, COVER_Y);
+    lv_obj_set_size(column, DETAILS_WIDTH, COVER_SIZE);
+    lv_obj_set_style_pad_row(column, ROW_GAP, 0);
 
-    artists = theme::label(parent, fonts::medium, theme::text());
-    lv_obj_set_size(artists, DETAILS_WIDTH, 20);
-    lv_label_set_long_mode(artists, LV_LABEL_LONG_DOT);
-    lv_obj_set_pos(artists, DETAILS_X, COVER_Y + 52);
+    title = makeLine(column, fonts::large, theme::text(), 2);
+    artists = makeLine(column, fonts::medium, theme::text(), 1);
+    device = makeLine(column, fonts::small, theme::textSecondary(), 1);
 
-    device = theme::label(parent, fonts::small, theme::textSecondary());
-    lv_obj_set_size(device, DETAILS_WIDTH, 16);
-    lv_label_set_long_mode(device, LV_LABEL_LONG_DOT);
-    lv_obj_set_pos(device, DETAILS_X, COVER_Y + 76);
+    lv_obj_t* spacer = makeLayout(column, LV_FLEX_FLOW_ROW);
+    lv_obj_set_width(spacer, LV_PCT(100));
+    lv_obj_set_flex_grow(spacer, 1);
 
-    progressBar = lv_bar_create(parent);
-    lv_obj_set_size(progressBar, DETAILS_WIDTH, 4);
-    lv_obj_set_pos(progressBar, DETAILS_X, COVER_Y + 106);
+    progressBar = lv_bar_create(column);
+    lv_obj_set_size(progressBar, LV_PCT(100), 4);
     lv_bar_set_range(progressBar, 0, PROGRESS_SCALE);
     lv_obj_set_style_bg_color(progressBar, theme::text(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(progressBar, LV_OPA_20, LV_PART_MAIN);
     lv_obj_set_style_bg_color(progressBar, theme::text(), LV_PART_INDICATOR);
 
-    elapsed = theme::label(parent, fonts::small, theme::textSecondary());
-    lv_obj_align_to(elapsed, progressBar, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 6);
+    lv_obj_t* times = makeLayout(column, LV_FLEX_FLOW_ROW);
+    lv_obj_set_size(times, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_align(times, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    elapsed = theme::label(times, fonts::small, theme::textSecondary());
+    total = theme::label(times, fonts::small, theme::textSecondary());
 
-    total = theme::label(parent, fonts::small, theme::textSecondary());
-    lv_obj_align_to(total, progressBar, LV_ALIGN_OUT_BOTTOM_RIGHT, 0, 6);
+    buildControls(column);
 }
 
-void SpotifyPage::buildControls(lv_obj_t* parent)
+void SpotifyPage::buildControls(lv_obj_t* column)
 {
-    makeControl(parent, LV_SYMBOL_PREV, DETAILS_X + 4, onPrevious, this);
-    playPauseLabel = makeControl(parent, LV_SYMBOL_PLAY, DETAILS_X + 82, onPlayPause, this);
-    makeControl(parent, LV_SYMBOL_NEXT, DETAILS_X + 160, onNext, this);
+    lv_obj_t* buttons = makeLayout(column, LV_FLEX_FLOW_ROW);
+    lv_obj_set_size(buttons, LV_PCT(100), CONTROL_SIZE);
+    lv_obj_set_flex_align(buttons, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    makeControl(buttons, LV_SYMBOL_PREV, onPrevious, this);
+    playPauseLabel = makeControl(buttons, LV_SYMBOL_PLAY, onPlayPause, this);
+    makeControl(buttons, LV_SYMBOL_NEXT, onNext, this);
 
-    volumeIcon = theme::label(parent, fonts::medium, theme::textSecondary());
+    lv_obj_t* volume = makeLayout(column, LV_FLEX_FLOW_ROW);
+    lv_obj_set_size(volume, LV_PCT(100), 20);
+    lv_obj_set_flex_align(volume, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(volume, 12, 0);
+    // O knob do slider passa da altura da trilha; a linha precisa de folga nas laterais para ele não ser cortado.
+    lv_obj_set_style_pad_hor(volume, 4, 0);
+
+    volumeIcon = theme::label(volume, fonts::medium, theme::textSecondary());
     lv_label_set_text(volumeIcon, LV_SYMBOL_VOLUME_MAX);
-    lv_obj_set_pos(volumeIcon, DETAILS_X, CONTROLS_Y + 76);
 
-    volumeSlider = lv_slider_create(parent);
-    lv_obj_set_size(volumeSlider, DETAILS_WIDTH - 36, 6);
-    lv_obj_set_pos(volumeSlider, DETAILS_X + 30, CONTROLS_Y + 82);
+    volumeSlider = lv_slider_create(volume);
+    lv_obj_set_height(volumeSlider, 6);
+    lv_obj_set_flex_grow(volumeSlider, 1);
     lv_slider_set_range(volumeSlider, 0, 100);
     lv_obj_set_style_bg_color(volumeSlider, theme::text(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(volumeSlider, LV_OPA_20, LV_PART_MAIN);

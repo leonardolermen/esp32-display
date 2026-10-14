@@ -22,7 +22,7 @@ public:
 private:
     void buildCover(lv_obj_t* parent);
     void buildDetails(lv_obj_t* parent);
-    void buildControls(lv_obj_t* parent);
+    void buildControls(lv_obj_t* column);
     void buildNotice(lv_obj_t* parent);
     void render(const PlayerState& state, uint32_t nowMillis);
     void renderCover(std::shared_ptr<const CoverArt> art);
