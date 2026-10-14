@@ -18,7 +18,7 @@ Ordem do deslize: **Início → Cripto → Spotify → Claude**. Código em `fir
 
 ## 3. App do Spotify
 
-Reaproveita o app que já existe no projeto Modue. O Client ID `5ee610458f974597ba5c5f96eab539b5` é público e vem
+App próprio do Claudinho no painel do Spotify (o do Modue serviu só nos primeiros testes). O Client ID `02d1a22249834743b58e6fc356e33b2e` é público e vem
 pré-preenchido; a página deixa trocar. Escopos: `user-read-playback-state`, `user-modify-playback-state`,
 `user-read-currently-playing`. Controles exigem Premium (o dono do app tem).
 

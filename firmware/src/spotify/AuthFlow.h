@@ -8,7 +8,7 @@
 // Pages, e o relay manda o navegador de volta para a placa com code e state.
 namespace AuthFlow {
 
-constexpr const char* DEFAULT_CLIENT_ID = "5ee610458f974597ba5c5f96eab539b5";
+constexpr const char* DEFAULT_CLIENT_ID = "02d1a22249834743b58e6fc356e33b2e";
 constexpr const char* REDIRECT_URI = "https://leonardolermen.github.io/esp32-display/callback/";
 constexpr const char* SCOPES = "user-read-playback-state user-modify-playback-state user-read-currently-playing";
 constexpr uint32_t VALID_FOR_MILLIS = 10 * 60 * 1000;
