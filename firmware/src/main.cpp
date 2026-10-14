@@ -77,7 +77,6 @@ void networkTask(void*)
 
     for (;;) {
         wifi.process();
-        marketFeed.poll(millis(), wifi.connected());
         setupState.publish(SetupProgress::compute(wifi.connected(), wifi.ip(), adminSecret.isSet()));
         vTaskDelay(pdMS_TO_TICKS(500));
     }
@@ -174,6 +173,7 @@ void setup()
     if (configured) {
         navigator.add(std::make_unique<HomePage>(photoStore));
         navigator.add(std::make_unique<CryptoPage>(marketFeed.state()));
+        marketFeed.begin();
     } else {
         navigator.add(std::make_unique<SetupPage>(setupState));
     }

@@ -39,11 +39,12 @@ std::vector<float> lastPoints(JsonArrayConst prices, size_t count)
 
 namespace MarketParser {
 
-std::optional<Quote> coinGecko(const std::string& json, const char* coinId)
+std::optional<Quote> coinGecko(std::string_view json, const char* coinId)
 {
     JsonDocument filter = coinGeckoFilter();
     JsonDocument document;
-    DeserializationError error = deserializeJson(document, json, DeserializationOption::Filter(filter));
+    DeserializationError error = deserializeJson(document, json.data(), json.size(),
+        DeserializationOption::Filter(filter));
     if (error != DeserializationError::Ok) {
         return std::nullopt;
     }
@@ -64,10 +65,10 @@ std::optional<Quote> coinGecko(const std::string& json, const char* coinId)
     return std::nullopt;
 }
 
-std::optional<double> dollarBid(const std::string& json)
+std::optional<double> dollarBid(std::string_view json)
 {
     JsonDocument document;
-    if (deserializeJson(document, json) != DeserializationError::Ok) {
+    if (deserializeJson(document, json.data(), json.size()) != DeserializationError::Ok) {
         return std::nullopt;
     }
 
@@ -79,10 +80,10 @@ std::optional<double> dollarBid(const std::string& json)
     return std::strtod(bid, nullptr);
 }
 
-std::vector<float> dollarSeries(const std::string& json)
+std::vector<float> dollarSeries(std::string_view json)
 {
     JsonDocument document;
-    if (deserializeJson(document, json) != DeserializationError::Ok) {
+    if (deserializeJson(document, json.data(), json.size()) != DeserializationError::Ok) {
         return {};
     }
 
