@@ -5,13 +5,14 @@
 
 #include <algorithm>
 
+#include "spotify/AuthFlow.h"
+#include "spotify/PlayerApi.h"
 #include "spotify/PlayerParser.h"
 #include "spotify/PollSchedule.h"
 #include "spotify/Progress.h"
 
 namespace {
 
-constexpr const char* PLAYER_URL = "https://api.spotify.com/v1/me/player";
 constexpr uint32_t TASK_STACK_BYTES = 16384;
 constexpr UBaseType_t QUEUE_LENGTH = 8;
 constexpr uint32_t IDLE_WAIT_MILLIS = 1000;
@@ -24,20 +25,6 @@ constexpr int UNAUTHORIZED = 401;
 constexpr int FORBIDDEN = 403;
 constexpr int NOT_FOUND = 404;
 constexpr int TOO_MANY_REQUESTS = 429;
-
-struct Endpoint {
-    const char* method;
-    const char* path;
-};
-
-// Na ordem de CommandKind.
-constexpr Endpoint ENDPOINTS[] = {
-    {"PUT", "/play"},
-    {"PUT", "/pause"},
-    {"POST", "/next"},
-    {"POST", "/previous"},
-    {"PUT", "/volume?volume_percent="},
-};
 
 bool reached(uint32_t nowMillis, uint32_t deadline)
 {
@@ -79,6 +66,13 @@ void SpotifyClient::send(Command command)
     }
 }
 
+void SpotifyClient::requestVolume(uint8_t volume)
+{
+    requestedVolume = volume;
+    // Acorda a tarefa; se a fila estiver cheia, o loop pega o valor no próximo giro.
+    send(Command{CommandKind::Volume});
+}
+
 void SpotifyClient::watch(bool watching)
 {
     watchers += watching ? 1 : -1;
@@ -111,6 +105,9 @@ void SpotifyClient::loop()
         if (reached(now, nextPollMillis)) {
             poll(now);
         }
+        if (requestedVolume.load() >= 0) {
+            handle(Command{CommandKind::Volume}, millis());
+        }
         if (pendingVolume && reached(millis(), volumeDueMillis)) {
             flushVolume();
         }
@@ -119,7 +116,7 @@ void SpotifyClient::loop()
     }
 }
 
-void SpotifyClient::showLogin(uint32_t nowMillis)
+void SpotifyClient::showLogin(uint32_t)
 {
     if (current.status != PlayerStatus::Disconnected) {
         current = PlayerState{};
@@ -127,10 +124,7 @@ void SpotifyClient::showLogin(uint32_t nowMillis)
         publishedCover.publish(CoverArt{});
     }
 
-    std::string url = auth.loginUrl(nowMillis);
-    if (url.empty()) {
-        url = auth.startLogin(WiFi.localIP().toString().c_str(), nowMillis);
-    }
+    std::string url = AuthFlow::shortLoginUrl(WiFi.localIP().toString().c_str());
     if (url != current.loginUrl) {
         current.loginUrl = url;
         published.publish(current);
@@ -156,7 +150,7 @@ void SpotifyClient::poll(uint32_t nowMillis)
     }
 
     HttpsRequest request;
-    request.url = PLAYER_URL;
+    request.url = PlayerApi::pollUrl();
     request.bearerToken = *token;
     HttpsResponse response = Https::send(request);
     uint32_t answeredAt = millis();
@@ -249,12 +243,17 @@ void SpotifyClient::refreshCover()
 void SpotifyClient::handle(const Command& command, uint32_t nowMillis)
 {
     switch (command.kind) {
-    case CommandKind::Volume:
-        pendingVolume = command.volume;
+    case CommandKind::Volume: {
+        int requested = requestedVolume.exchange(-1);
+        if (requested < 0) {
+            return;
+        }
+        pendingVolume = static_cast<uint8_t>(requested);
         volumeDueMillis = nowMillis + VOLUME_DEBOUNCE_MILLIS;
-        current.volume = command.volume;
+        current.volume = requested;
         published.publish(current);
         return;
+    }
     case CommandKind::Play:
         current.status = PlayerStatus::Playing;
         current.sampledAtMillis = nowMillis;
@@ -273,21 +272,20 @@ void SpotifyClient::handle(const Command& command, uint32_t nowMillis)
 
     // Otimista: a tela muda na hora e o poll logo depois confirma ou desfaz.
     published.publish(current);
-    callPlayer(command.kind, "");
+    callPlayer(command.kind, 0);
     nextPollMillis = millis() + RECONCILE_AFTER_MILLIS;
 }
 
-int SpotifyClient::callPlayer(CommandKind kind, const std::string& suffix)
+int SpotifyClient::callPlayer(CommandKind kind, uint8_t volume)
 {
     std::optional<std::string> token = auth.accessToken(millis());
     if (!token) {
         return 0;
     }
 
-    const Endpoint& endpoint = ENDPOINTS[static_cast<size_t>(kind)];
     HttpsRequest request;
-    request.method = endpoint.method;
-    request.url = std::string(PLAYER_URL) + endpoint.path + suffix;
+    request.method = PlayerApi::method(kind);
+    request.url = PlayerApi::commandUrl(kind, volume);
     request.bearerToken = *token;
 
     HttpsResponse response = Https::send(request);
@@ -306,7 +304,7 @@ void SpotifyClient::flushVolume()
     pendingVolume.reset();
 
     // 403 no volume: o aparelho não deixa (alguns alto-falantes e TVs); o slider some até o aparelho mudar.
-    if (callPlayer(CommandKind::Volume, std::to_string(volume)) == FORBIDDEN) {
+    if (callPlayer(CommandKind::Volume, volume) == FORBIDDEN) {
         current.volumeAllowed = false;
         published.publish(current);
     }

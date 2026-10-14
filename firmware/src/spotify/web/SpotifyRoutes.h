@@ -12,6 +12,7 @@ public:
     void begin();
 
 private:
+    void go(AsyncWebServerRequest* request);
     void callback(AsyncWebServerRequest* request);
     void status(AsyncWebServerRequest* request);
     void connect(AsyncWebServerRequest* request, const uint8_t* data, size_t length);

@@ -10,6 +10,7 @@
 namespace {
 
 constexpr uint16_t TIMEOUT_MILLIS = 5000;
+constexpr int NO_CONTENT = 204;
 const char* COLLECTED_HEADERS[] = {"Retry-After"};
 
 }
@@ -80,6 +81,9 @@ HttpsResponse send(const HttpsRequest& request)
     client.setTimeout(TIMEOUT_MILLIS);
 
     HTTPClient http;
+    // Sem keep-alive o servidor fecha depois da resposta: um 204 sem Content-Length não deixa a leitura esperando o
+    // socket fechar.
+    http.setReuse(false);
     http.setTimeout(TIMEOUT_MILLIS);
     http.setConnectTimeout(TIMEOUT_MILLIS);
     if (!http.begin(client, request.url.c_str())) {
@@ -102,7 +106,8 @@ HttpsResponse send(const HttpsRequest& request)
     response.status = http.sendRequest(request.method, payload, request.payload.size());
     response.retryAfter = http.header("Retry-After").c_str();
 
-    if (response.status > 0) {
+    bool hasBody = response.status >= 200 && response.status != NO_CONTENT;
+    if (hasBody) {
         std::unique_ptr<PsramBuffer> body = PsramBuffer::allocate(request.maxBodyBytes);
         if (body && http.writeToStream(body.get()) > 0) {
             response.body = std::move(body);

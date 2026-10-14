@@ -82,6 +82,7 @@ void SpotifyRoutes::begin()
     AsyncWebServer& server = http.raw();
 
     // O ESPAsyncWebServer casa "/api/spotify" também com "/api/spotify/…": o callback tem que vir antes do status.
+    server.on("/spotify/go", HTTP_GET, [this](AsyncWebServerRequest* request) { go(request); });
     server.on("/api/spotify/callback", HTTP_GET, [this](AsyncWebServerRequest* request) { callback(request); });
     server.on("/api/spotify/connect", HTTP_POST, [](AsyncWebServerRequest*) {}, nullptr,
         [this](AsyncWebServerRequest* request, uint8_t* data, size_t length, size_t, size_t) {
@@ -93,6 +94,13 @@ void SpotifyRoutes::begin()
         });
     server.on("/api/spotify", HTTP_GET, [this](AsyncWebServerRequest* request) { status(request); });
     server.on("/api/spotify", HTTP_DELETE, [this](AsyncWebServerRequest* request) { disconnect(request); });
+}
+
+// Destino do QR da tela: aberto, porque quem escaneia ainda não tem o PIN. Gera o login na hora e manda para o
+// Spotify; a URL longa não cabe num QR legível.
+void SpotifyRoutes::go(AsyncWebServerRequest* request)
+{
+    request->redirect(auth.startLogin(wifi.ip(), millis()).c_str());
 }
 
 // Aberto de propósito: chega do celular que fez o login, sem a senha da página. O nonce de 128 bits no state é a
@@ -124,6 +132,7 @@ void SpotifyRoutes::status(AsyncWebServerRequest* request)
     JsonDocument document;
     document["connected"] = auth.connected();
     document["clientId"] = vault.clientId();
+    document["lastError"] = auth.lastError();
     sendJson(request, 200, document);
 }
 

@@ -1,5 +1,6 @@
 #include "spotify/screen/NowPlayingPill.h"
 
+#include <algorithm>
 #include <string>
 
 #include "theme/Fonts.h"
@@ -32,8 +33,6 @@ void NowPlayingPill::build(lv_obj_t* parent)
     lv_obj_add_flag(pill, LV_OBJ_FLAG_HIDDEN);
 
     text = theme::label(pill, fonts::small, theme::text());
-    lv_obj_set_width(text, LV_SIZE_CONTENT);
-    lv_obj_set_style_max_width(text, MAX_TEXT_WIDTH, 0);
     lv_label_set_long_mode(text, LV_LABEL_LONG_DOT);
     lv_obj_align(text, LV_ALIGN_LEFT_MID, 0, 0);
 }
@@ -65,5 +64,10 @@ void NowPlayingPill::onTick(uint32_t)
     if (!state.track.artists.empty()) {
         line += " — " + state.track.artists;
     }
+    // Largura medida e uma linha de altura: com tamanho automático e largura máxima o LVGL quebra o texto em várias
+    // linhas e a cápsula mostra um pedaço do meio, sem reticências.
+    lv_point_t size;
+    lv_text_get_size(&size, line.c_str(), fonts::small, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    lv_obj_set_size(text, std::min<int32_t>(size.x, MAX_TEXT_WIDTH), lv_font_get_line_height(fonts::small));
     lv_label_set_text(text, line.c_str());
 }

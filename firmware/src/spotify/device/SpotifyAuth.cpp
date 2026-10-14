@@ -15,8 +15,6 @@ constexpr const char* FORM = "application/x-www-form-urlencoded";
 constexpr uint16_t HTTP_PORT = 80;
 constexpr size_t NONCE_BYTES = 16;
 constexpr uint32_t EARLY_REFRESH_SECONDS = 60;
-// Gera um link novo antes do antigo vencer, para o QR da tela nunca mostrar um link que o Spotify vai recusar.
-constexpr uint32_t LOGIN_URL_LIFETIME_MILLIS = 9 * 60 * 1000;
 
 bool reached(uint32_t nowMillis, uint32_t deadline)
 {
@@ -50,16 +48,15 @@ std::string SpotifyAuth::startLogin(const std::string& ipAddress, uint32_t nowMi
     std::string url = AuthFlow::authorizeUrl(vault.clientId(), Pkce::challenge(fresh.verifier), state);
 
     std::lock_guard<std::mutex> lock(mutex);
+    previousPending = pending;
     pending = fresh;
-    pendingUrl = url;
     return url;
 }
 
-std::string SpotifyAuth::loginUrl(uint32_t nowMillis) const
+std::string SpotifyAuth::lastError() const
 {
     std::lock_guard<std::mutex> lock(mutex);
-    bool fresh = !pendingUrl.empty() && nowMillis - pending.createdMillis < LOGIN_URL_LIFETIME_MILLIS;
-    return fresh ? pendingUrl : "";
+    return lastFailure;
 }
 
 AuthFlow::CallbackCheck SpotifyAuth::acceptCallback(const std::string& code, const std::string& state,
@@ -67,15 +64,15 @@ AuthFlow::CallbackCheck SpotifyAuth::acceptCallback(const std::string& code, con
 {
     std::lock_guard<std::mutex> lock(mutex);
 
-    AuthFlow::CallbackCheck check = AuthFlow::check(pending, state, nowMillis);
-    if (check == AuthFlow::CallbackCheck::Accepted) {
+    AuthFlow::Match match = AuthFlow::checkEither(pending, previousPending, state, nowMillis);
+    if (match.check == AuthFlow::CallbackCheck::Accepted) {
         waitingCode = code;
-        waitingVerifier = pending.verifier;
+        waitingVerifier = match.accepted->verifier;
         // O mesmo link não serve duas vezes.
         pending = AuthFlow::Pending{};
-        pendingUrl.clear();
+        previousPending = AuthFlow::Pending{};
     }
-    return check;
+    return match.check;
 }
 
 bool SpotifyAuth::exchangeWaitingCode(uint32_t nowMillis)
@@ -93,11 +90,15 @@ bool SpotifyAuth::exchangeWaitingCode(uint32_t nowMillis)
 
     std::optional<TokenResult> result = requestToken(AuthFlow::tokenRequestBody(vault.clientId(), code, verifier));
     if (!result || !result->ok || !result->refreshToken) {
-        log_w("spotify: troca do código falhou: %s", result ? result->error.c_str() : "sem resposta");
+        // Guardado para a página mostrar: sem isso a troca falha em silêncio e a pessoa não sabe o que fazer.
+        std::lock_guard<std::mutex> lock(mutex);
+        lastFailure = result && !result->error.empty() ? result->error : "sem resposta do Spotify";
         return false;
     }
 
     remember(*result, nowMillis);
+    std::lock_guard<std::mutex> lock(mutex);
+    lastFailure.clear();
     return true;
 }
 

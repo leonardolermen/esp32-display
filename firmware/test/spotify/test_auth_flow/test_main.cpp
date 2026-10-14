@@ -110,6 +110,41 @@ void test_refresh_request_body()
         AuthFlow::refreshRequestBody("CID", "R+1").c_str());
 }
 
+void test_the_previous_login_still_works_after_a_new_one_starts()
+{
+    AuthFlow::Pending previous{"old", NONCE, 1000};
+    AuthFlow::Pending current{"new", "ffffffffffffffffffffffffffffffff", 5000};
+
+    AuthFlow::Match match = AuthFlow::checkEither(current, previous, STATE, 6000);
+
+    TEST_ASSERT_EQUAL(AuthFlow::CallbackCheck::Accepted, match.check);
+    TEST_ASSERT_EQUAL_STRING("old", match.accepted->verifier.c_str());
+}
+
+void test_neither_login_matching_is_a_mismatch()
+{
+    AuthFlow::Pending previous{"old", "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", 1000};
+    AuthFlow::Pending current{"new", "ffffffffffffffffffffffffffffffff", 5000};
+
+    AuthFlow::Match match = AuthFlow::checkEither(current, previous, STATE, 6000);
+
+    TEST_ASSERT_EQUAL(AuthFlow::CallbackCheck::Mismatch, match.check);
+    TEST_ASSERT_NULL(match.accepted);
+}
+
+void test_an_old_previous_login_is_expired()
+{
+    AuthFlow::Pending previous{"old", NONCE, 1000};
+    AuthFlow::Pending current{"new", "ffffffffffffffffffffffffffffffff", 5000};
+
+    TEST_ASSERT_EQUAL(AuthFlow::CallbackCheck::Expired, AuthFlow::checkEither(current, previous, STATE, 700000).check);
+}
+
+void test_short_login_url_fits_a_small_qr()
+{
+    TEST_ASSERT_EQUAL_STRING("http://192.168.1.34/spotify/go", AuthFlow::shortLoginUrl("192.168.1.34").c_str());
+}
+
 int main()
 {
     UNITY_BEGIN();
@@ -124,5 +159,9 @@ int main()
     RUN_TEST(test_pasted_url_without_code_is_nothing);
     RUN_TEST(test_token_request_body);
     RUN_TEST(test_refresh_request_body);
+    RUN_TEST(test_the_previous_login_still_works_after_a_new_one_starts);
+    RUN_TEST(test_neither_login_matching_is_a_mismatch);
+    RUN_TEST(test_an_old_previous_login_is_expired);
+    RUN_TEST(test_short_login_url_fits_a_small_qr);
     return UNITY_END();
 }

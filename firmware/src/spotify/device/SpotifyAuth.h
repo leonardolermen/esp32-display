@@ -15,7 +15,7 @@ public:
 
     bool connected() const;
     std::string startLogin(const std::string& ipAddress, uint32_t nowMillis);
-    std::string loginUrl(uint32_t nowMillis) const;
+    std::string lastError() const;
     AuthFlow::CallbackCheck acceptCallback(const std::string& code, const std::string& state, uint32_t nowMillis);
     bool exchangeWaitingCode(uint32_t nowMillis);
     std::optional<std::string> accessToken(uint32_t nowMillis);
@@ -29,7 +29,8 @@ private:
     SpotifyVault& vault;
     mutable std::mutex mutex;
     AuthFlow::Pending pending;
-    std::string pendingUrl;
+    AuthFlow::Pending previousPending;
+    std::string lastFailure;
     std::string waitingCode;
     std::string waitingVerifier;
     std::string access;

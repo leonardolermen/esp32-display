@@ -28,7 +28,8 @@ void downscale(const uint16_t* source, int sourceWidth, int sourceHeight, uint16
                 }
             }
 
-            target[y * size + x] = static_cast<uint16_t>(((red / count) << 11) | ((green / count) << 5) | (blue / count));
+            uint32_t averaged = ((red / count) << 11) | ((green / count) << 5) | (blue / count);
+            target[y * size + x] = static_cast<uint16_t>(averaged);
         }
     }
 }

@@ -137,6 +137,25 @@ CallbackCheck check(const Pending& pending, const std::string& state, uint32_t n
     return fresh ? CallbackCheck::Accepted : CallbackCheck::Expired;
 }
 
+// Dois logins podem estar em andamento (o QR da tela e o botão Conectar da página); começar um não derruba o outro.
+Match checkEither(const Pending& current, const Pending& previous, const std::string& state, uint32_t nowMillis)
+{
+    CallbackCheck currentCheck = check(current, state, nowMillis);
+    if (currentCheck != CallbackCheck::Mismatch) {
+        return Match{currentCheck, currentCheck == CallbackCheck::Accepted ? &current : nullptr};
+    }
+
+    CallbackCheck previousCheck = check(previous, state, nowMillis);
+    return Match{previousCheck, previousCheck == CallbackCheck::Accepted ? &previous : nullptr};
+}
+
+// O QR da tela aponta para cá, não para a URL do Spotify: ela tem ~400 caracteres e viraria um QR de módulos de
+// 1 px que nenhum celular lê. A placa gera o login na hora em que alguém abre este endereço.
+std::string shortLoginUrl(const std::string& ip)
+{
+    return "http://" + ip + "/spotify/go";
+}
+
 std::optional<Callback> fromPastedUrl(const std::string& url)
 {
     size_t question = url.find('?');

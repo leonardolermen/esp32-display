@@ -120,6 +120,9 @@ async function refreshSpotify() {
     spotifyClient.value = spotify.clientId;
     spotifyConnect.textContent = spotify.connected ? 'Conectar outra conta' : 'Conectar';
     spotifyDisconnect.classList.toggle('hidden', !spotify.connected);
+    spotifyMessage.textContent = !spotify.connected && spotify.lastError
+        ? 'O Spotify recusou o login (' + spotify.lastError + '). Confira a redirect URI do app e tente de novo.'
+        : '';
 }
 
 spotifyConnect.addEventListener('click', async () => {

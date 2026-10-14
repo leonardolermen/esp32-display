@@ -327,5 +327,5 @@ void SpotifyPage::onVolume(lv_event_t* event)
 {
     lv_obj_t* slider = lv_event_get_target_obj(event);
     uint8_t volume = static_cast<uint8_t>(lv_slider_get_value(slider));
-    pageOf(event)->client.send(Command{CommandKind::Volume, volume});
+    pageOf(event)->client.requestVolume(volume);
 }

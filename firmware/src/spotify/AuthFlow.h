@@ -36,11 +36,18 @@ enum class CallbackCheck {
     Mismatch,
 };
 
+struct Match {
+    CallbackCheck check;
+    const Pending* accepted;
+};
+
 std::string urlEncode(const std::string& text);
 std::string state(const std::string& ip, uint16_t port, const std::string& nonce);
 std::optional<HostAndNonce> parseState(const std::string& state);
 std::string authorizeUrl(const std::string& clientId, const std::string& challenge, const std::string& state);
 CallbackCheck check(const Pending& pending, const std::string& state, uint32_t nowMillis);
+Match checkEither(const Pending& current, const Pending& previous, const std::string& state, uint32_t nowMillis);
+std::string shortLoginUrl(const std::string& ip);
 std::optional<Callback> fromPastedUrl(const std::string& url);
 std::string tokenRequestBody(const std::string& clientId, const std::string& code, const std::string& verifier);
 std::string refreshRequestBody(const std::string& clientId, const std::string& refreshToken);
