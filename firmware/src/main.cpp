@@ -24,6 +24,12 @@
 #include "setup/storage/AdminSecret.h"
 #include "setup/web/AdminRoutes.h"
 #include "setup/web/HttpServer.h"
+#include "spotify/device/SpotifyAuth.h"
+#include "spotify/device/SpotifyClient.h"
+#include "spotify/screen/NowPlayingPill.h"
+#include "spotify/screen/SpotifyPage.h"
+#include "spotify/storage/SpotifyVault.h"
+#include "spotify/web/SpotifyRoutes.h"
 #include "support/LocalTime.h"
 #include "support/Published.h"
 #include "support/device/NetworkClock.h"
@@ -51,6 +57,10 @@ BirthdayMemory birthdayMemory;
 BirthdayOverlay birthdayOverlay;
 BirthdayRoutes birthdayRoutes(http);
 MarketFeed marketFeed;
+SpotifyVault spotifyVault;
+SpotifyAuth spotifyAuth(spotifyVault);
+SpotifyClient spotifyClient(spotifyAuth);
+SpotifyRoutes spotifyRoutes(http, spotifyAuth, spotifyVault, wifi);
 
 constexpr uint32_t BIRTHDAY_CHECK_EVERY_MILLIS = 60000;
 
@@ -72,6 +82,7 @@ void networkTask(void*)
     adminRoutes.begin();
     photoRoutes.begin();
     birthdayRoutes.begin();
+    spotifyRoutes.begin();
     http.begin();
     networkClock.begin();
 
@@ -168,12 +179,15 @@ void setup()
 
     photoStore.begin();
     adminSecret.begin();
+    spotifyVault.begin();
 
     configured = adminSecret.isSet() && wifi.hasSavedNetwork();
     if (configured) {
-        navigator.add(std::make_unique<HomePage>(photoStore));
+        navigator.add(std::make_unique<HomePage>(photoStore, std::make_unique<NowPlayingPill>(spotifyClient)));
         navigator.add(std::make_unique<CryptoPage>(marketFeed.state()));
+        navigator.add(std::make_unique<SpotifyPage>(spotifyClient));
         marketFeed.begin();
+        spotifyClient.begin();
     } else {
         navigator.add(std::make_unique<SetupPage>(setupState));
     }

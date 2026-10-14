@@ -61,3 +61,19 @@ Resultado do bring-up (preencher): versões usadas ______, init `type1`/`type2` 
 - [ ] Variação positiva em verde, negativa em vermelho, com a sparkline na mesma cor.
 - [ ] Roteador desligado: valores ficam e o rodapé vira "visto às HH:MM"; religado, volta a "atualizado" em até 2 min.
 - [ ] Página aberta antes da primeira resposta: traços e "buscando…", sem travar.
+
+## Spotify
+
+Antes, uma vez: redirect URI `https://leonardolermen.github.io/esp32-display/callback/` no app do Spotify; Pages com
+fonte "GitHub Actions" (o workflow `relay` publica). Sem o Pages ainda, o plano B funciona: o login para numa página
+404 do github.io, e o endereço dela colado no card resolve.
+
+- [ ] Card Spotify em claudinho.local → Conectar → login no celular → volta para a placa → "Spotify conectando".
+- [ ] Página do Spotify desconectada mostra QR; escanear com o celular também conecta.
+- [ ] Plano B: colar o link onde o login parou no campo "O login não voltou para cá?" conecta.
+- [ ] Música aparece em até 3 s com capa, título, artista, aparelho e progresso andando.
+- [ ] Tocar/pausar, próxima e anterior respondem na hora; volume pelo slider muda no aparelho.
+- [ ] Trocar de álbum troca a capa e a cor de fundo com transição.
+- [ ] Sem aparelho tocando: "Abra o Spotify em algum aparelho".
+- [ ] Pílula no Início com a música; some ao pausar.
+- [ ] Reiniciar a placa mantém a conexão; Desconectar na página volta para o QR.

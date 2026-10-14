@@ -17,9 +17,10 @@ constexpr int32_t BAND_HEIGHT = 78;
 
 }
 
-HomePage::HomePage(PhotoStore& store)
+HomePage::HomePage(PhotoStore& store, std::unique_ptr<Page> overlay)
     : store(store)
     , view(store)
+    , overlay(std::move(overlay))
 {
 }
 
@@ -64,11 +65,32 @@ void HomePage::build(lv_obj_t* parent)
     dateLabel = theme::label(band, fonts::small, theme::textSecondary());
     lv_obj_align(dateLabel, LV_ALIGN_BOTTOM_LEFT, 16, -10);
     lv_obj_add_flag(band, LV_OBJ_FLAG_HIDDEN);
+
+    // Camada por cima das fotos para outra página pôr o que quiser (a pílula da música). Não recebe toque: o deslize
+    // continua passando para o Navigator.
+    overlayLayer = lv_obj_create(parent);
+    lv_obj_remove_style_all(overlayLayer);
+    lv_obj_set_size(overlayLayer, LV_PCT(100), LV_PCT(100));
+    lv_obj_remove_flag(overlayLayer, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(overlayLayer, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    if (overlay) {
+        overlay->build(overlayLayer);
+    }
 }
 
 void HomePage::onShow()
 {
     reloadAlbum();
+    if (overlay) {
+        overlay->onShow();
+    }
+}
+
+void HomePage::onHide()
+{
+    if (overlay) {
+        overlay->onHide();
+    }
 }
 
 void HomePage::reloadAlbum()
@@ -94,6 +116,10 @@ void HomePage::onTick(uint32_t nowMillis)
     if (nowMillis - lastClockMillis >= CLOCK_EVERY_MILLIS) {
         lastClockMillis = nowMillis;
         refreshClock();
+    }
+
+    if (overlay) {
+        overlay->onTick(nowMillis);
     }
 }
 
@@ -122,6 +148,7 @@ void HomePage::showNextPhoto(uint32_t nowMillis)
     lv_image_set_src(images[incoming], &frames[incoming]);
     lv_obj_move_foreground(images[incoming]);
     lv_obj_move_foreground(band);
+    lv_obj_move_foreground(overlayLayer);
     lv_obj_fade_in(images[incoming], FADE_MILLIS, 0);
     lv_obj_fade_out(images[visible], FADE_MILLIS, 0);
     visible = incoming;

@@ -2,6 +2,7 @@
 
 #include <lvgl.h>
 
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -12,10 +13,11 @@
 
 class HomePage : public Page {
 public:
-    explicit HomePage(PhotoStore& store);
+    HomePage(PhotoStore& store, std::unique_ptr<Page> overlay);
 
     void build(lv_obj_t* parent) override;
     void onShow() override;
+    void onHide() override;
     void onTick(uint32_t nowMillis) override;
 
 private:
@@ -40,4 +42,7 @@ private:
     lv_obj_t* band = nullptr;
     lv_obj_t* clockLabel = nullptr;
     lv_obj_t* dateLabel = nullptr;
+
+    std::unique_ptr<Page> overlay;
+    lv_obj_t* overlayLayer = nullptr;
 };
