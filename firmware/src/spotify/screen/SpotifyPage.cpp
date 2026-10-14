@@ -147,6 +147,8 @@ void SpotifyPage::buildControls(lv_obj_t* parent)
     lv_obj_set_style_bg_color(volumeSlider, theme::text(), LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(volumeSlider, theme::text(), LV_PART_KNOB);
     lv_obj_add_event_cb(volumeSlider, onVolume, LV_EVENT_VALUE_CHANGED, this);
+    // Todo objeto do LVGL nasce repassando gestos ao pai: arrastar o volume para o lado viraria troca de página.
+    lv_obj_remove_flag(volumeSlider, LV_OBJ_FLAG_GESTURE_BUBBLE);
 }
 
 void SpotifyPage::buildNotice(lv_obj_t* parent)

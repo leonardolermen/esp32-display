@@ -75,6 +75,7 @@ dela colado no card resolve.
 - [ ] Plano B: colar o link onde o login parou no campo "O login não voltou para cá?" conecta.
 - [ ] Música aparece em até 3 s com capa, título, artista, aparelho e progresso andando.
 - [ ] Tocar/pausar, próxima e anterior respondem na hora; volume pelo slider muda no aparelho.
+- [ ] Arrastar o volume para os lados não troca de página.
 - [ ] Trocar de álbum troca a capa e a cor de fundo com transição.
 - [ ] Sem aparelho tocando: "Abra o Spotify em algum aparelho".
 - [ ] Pílula no Início com a música; some ao pausar.
