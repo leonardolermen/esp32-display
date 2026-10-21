@@ -80,3 +80,19 @@ dela colado no card resolve.
 - [ ] Sem aparelho tocando: "Abra o Spotify em algum aparelho".
 - [ ] Pílula no Início com a música; some ao pausar.
 - [ ] Reiniciar a placa mantém a conexão; Desconectar na página volta para o QR.
+
+## Entrega para um novo dono
+
+Apaga PIN, Spotify e a marca do aniversário; mantém Wi-Fi e fotos. De dentro de `firmware/`, no PowerShell:
+
+```powershell
+$env:PLATFORMIO_BUILD_FLAGS = "-D CLAUDINHO_OWNER_RESET"; pio run -e board -t upload --upload-port COM8
+Remove-Item Env:PLATFORMIO_BUILD_FLAGS; pio run -e board -t upload --upload-port COM8
+```
+
+O primeiro grava o firmware que apaga ao ligar; o segundo volta o normal. Não deixe o primeiro gravado: ele apaga a
+cada boot.
+
+- [ ] Ao ligar: mensagem de aniversário com confete.
+- [ ] Depois do toque: tela de configuração com o QR de claudinho.local (Wi-Fi já conectado) para criar o PIN.
+- [ ] Fotos continuam no Início depois do PIN.

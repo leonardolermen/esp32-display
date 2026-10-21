@@ -22,6 +22,7 @@
 #include "setup/device/WifiLink.h"
 #include "setup/screen/SetupPage.h"
 #include "setup/storage/AdminSecret.h"
+#include "setup/storage/OwnerReset.h"
 #include "setup/web/AdminRoutes.h"
 #include "setup/web/HttpServer.h"
 #include "spotify/device/SpotifyAuth.h"
@@ -168,6 +169,10 @@ void setup()
     // Sem espera, o log é descartado quando não há leitor e o loop do LVGL nunca para por causa dele.
     Serial.setTxTimeoutMs(0);
 
+#ifdef CLAUDINHO_OWNER_RESET
+    // Firmware de uma vez só, para entregar o aparelho; o normal é gravado logo depois (roteiro, "Entrega").
+    OwnerReset::clearOwnerData();
+#endif
     NetworkClock::applyTimeZone();
 
     lv_init();
